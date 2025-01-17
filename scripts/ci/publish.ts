@@ -593,12 +593,12 @@ async function publish() {
     }
 
     if (args['--publish'] || dryRun) {
-      if (args['--release']) {
+      if (args['--release'] && !process.env.SKIP_ECOSYSTEMTESTS_CHECK) {
         if (!tagForEcosystemTestsCheck) {
           throw new Error(`tagForEcosystemTestsCheck missing`)
         }
         const passing = await areEcosystemTestsPassing(tagForEcosystemTestsCheck)
-        if (!passing && !process.env.SKIP_ECOSYSTEMTESTS_CHECK) {
+        if (!passing) {
           throw new Error(`We can't release, as the ecosystem-tests are not passing for the ${tag} npm tag!
 Check them out at https://github.com/prisma/ecosystem-tests/actions?query=workflow%3Atest+branch%3A${tag}`)
         }
@@ -625,7 +625,7 @@ Check them out at https://github.com/prisma/ecosystem-tests/actions?query=workfl
         fs.appendFileSync(process.env.GITHUB_OUTPUT, `prismaCommitHash=${prismaCommitHash}\n`)
       }
 
-      if (!args['--dry-run']) {
+      if (!args['--dry-run'] && !process.env.SKIP_SLACK_MESSAGE) {
         try {
           await sendSlackMessage({
             version: prismaVersion,
@@ -855,7 +855,9 @@ async function publishPackages(
          *  - Your working directory is clean (there are no uncommitted changes).
          *  - The branch is up-to-date.
          */
-        await run(pkgDir, `pnpm publish --no-git-checks --access public --tag ${tag}`, dryRun)
+        const customRegistry = process.env.CUSTOM_NPM_REGISTRY_TO_PUBLISH_TO
+        const customRegistryFlag = customRegistry ? ` --registry ${customRegistry}` : ''
+        await run(pkgDir, `pnpm publish --no-git-checks --access public --tag ${tag}${customRegistryFlag}`, dryRun)
       }
     }
   }

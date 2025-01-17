@@ -4,7 +4,7 @@ import fs from 'fs/promises'
 import { testGeneratedClient } from './common'
 
 test('not-so-exhaustive-schema-with-simplified-types (library)', async () => {
-  process.env.PRISMA_HACK_GENERATOR_CONFIG_disableTypingSupportForHeavyFeatures = 'true'
+  process.env.PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES = 'true'
   // TODO [simplification] wip hack to be removed
   try {
     await testGeneratedClient(ClientEngineType.Library)()
@@ -17,6 +17,6 @@ test('not-so-exhaustive-schema-with-simplified-types (library)', async () => {
     const adaptedContent = originalContent.replace(oldImport, newImport)
     await fs.writeFile(file, adaptedContent, 'utf-8')
   } finally {
-    delete process.env.PRISMA_HACK_GENERATOR_CONFIG_disableTypingSupportForHeavyFeatures
+    delete process.env.PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES
   }
 })

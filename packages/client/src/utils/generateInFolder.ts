@@ -68,9 +68,9 @@ export async function generateInFolder({
   }
   function hackGenerators(config: ConfigMetaFormat) {
     // TODO [simplification] wip hack to not have to update prisma-schema-wasm
-    if (process.env.PRISMA_HACK_GENERATOR_CONFIG_disableTypingSupportForHeavyFeatures === 'true') {
+    if (process.env.PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES === 'true') {
       console.warn(
-        'Disabling typing support for heavy features due to PRISMA_HACK_GENERATOR_CONFIG_disableTypingSupportForHeavyFeatures',
+        'Disabling typing support for heavy features due to PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES',
       )
       for (const generator of config.generators) {
         if (parseEnvValue(generator.provider) === 'prisma-client-js') {

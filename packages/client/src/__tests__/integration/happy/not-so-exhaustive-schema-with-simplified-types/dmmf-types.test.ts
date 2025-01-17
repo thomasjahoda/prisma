@@ -16,7 +16,7 @@ if (isMacOrWindowsCI) {
  */
 test('dmmf-types', async () => {
   // TODO [simplification] wip hack to be removed
-  process.env.PRISMA_HACK_GENERATOR_CONFIG_disableTypingSupportForHeavyFeatures = 'true'
+  process.env.PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES = 'true'
   try {
     await testGeneratedClient(ClientEngineType.Binary)()
     const datamodel = fs.readFileSync(path.join(__dirname, 'schema.prisma'), 'utf-8')
@@ -34,6 +34,6 @@ test('dmmf-types', async () => {
 
     await expect(compileFile(dmmfFile)).resolves.not.toThrow()
   } finally {
-    delete process.env.PRISMA_HACK_GENERATOR_CONFIG_disableTypingSupportForHeavyFeatures
+    delete process.env.PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES
   }
 })

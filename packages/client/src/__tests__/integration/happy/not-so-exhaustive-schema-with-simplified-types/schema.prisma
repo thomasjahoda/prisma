@@ -1,6 +1,6 @@
 generator client {
   provider = "prisma-client-js"
-  // using PRISMA_HACK_GENERATOR_CONFIG_disableTypingSupportForHeavyFeatures temporarily
+  // using PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES temporarily
   // previewFeatures             = ["disableTypingSupportForHeavyFeatures"]
   // clientTypingSimplifications = "{ disableTypingSupportForHeavyFeatures: true }"
 }
