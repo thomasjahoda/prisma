@@ -1,6 +1,7 @@
 import indent from 'indent-string'
 
 import { TAB_SIZE } from './constants'
+import { GenerateContext } from './GenerateContext'
 import type { TSClientOptions } from './TSClient'
 
 export const commonCodeJS = ({
@@ -140,19 +141,28 @@ In case this error is unexpected for you, please report it in https://pris.ly/pr
   return fnc
 }
 
-export const commonCodeTS = ({
-  runtimeBase,
-  runtimeNameTs,
-  clientVersion,
-  engineVersion,
-  generator,
-}: TSClientOptions) => ({
+export const commonCodeTS = (
+  { runtimeBase, runtimeNameTs, clientVersion, engineVersion, generator }: TSClientOptions,
+  context: GenerateContext,
+) => ({
+  // TODO [simplification] remove this if flag set?
+  // TODO [simplification] remove $Extensions and $Public completely if flag set?
   tsWithoutNamespace: () => `import * as runtime from '${runtimeBase}/${runtimeNameTs}';
+${
+  context.isTypingSupportForHeavyFeaturesEnabled()
+    ? `
 import $Types = runtime.Types // general types
 import $Public = runtime.Types.Public
 import $Utils = runtime.Types.Utils
 import $Extensions = runtime.Types.Extensions
-import $Result = runtime.Types.Result
+import $Result = runtime.Types.Result`
+    : `
+import $Types = runtime.Types // general types
+import $Public = runtime.Types.Public
+import $Utils = runtime.Types.Utils
+import $Extensions = runtime.Types.ExtensionsSimplified
+import $Result = runtime.Types.ResultSimplified`
+}
 
 export type PrismaPromise<T> = $Public.PrismaPromise<T>
 `,
@@ -204,12 +214,13 @@ export type MetricHistogramBucket = runtime.MetricHistogramBucket
 /**
 * Extensions
 */
-export import Extension = $Extensions.UserArgs
-export import getExtensionContext = runtime.Extensions.getExtensionContext
-export import Args = $Public.Args
-export import Payload = $Public.Payload
-export import Result = $Public.Result
-export import Exact = $Public.Exact
+// TODO [simplification] remove this if flag set?
+// export import Extension = $Extensions.UserArgs
+// export import getExtensionContext = runtime.Extensions.getExtensionContext
+// export import Args = $Public.Args
+// export import Payload = $Public.Payload
+// export import Result = $Public.Result
+// export import Exact = $Public.Exact
 
 /**
  * Prisma Client JS version: ${clientVersion}
@@ -272,9 +283,15 @@ type SelectAndInclude = {
   include: any
 }
 
+${
+  context.isTypingSupportForHeavyFeaturesEnabled()
+    ? `
 type SelectAndOmit = {
   select: any
   omit: any
+}
+`
+    : ''
 }
 
 /**
@@ -325,9 +342,16 @@ export type SelectSubset<T, U> = {
 } &
   (T extends SelectAndInclude
     ? 'Please either choose \`select\` or \`include\`.'
-    : T extends SelectAndOmit
-      ? 'Please either choose \`select\` or \`omit\`.'
-      : {})
+    ${
+      context.isTypingSupportForHeavyFeaturesEnabled()
+        ? `    : T extends SelectAndOmit
+        ? 'Please either choose \`select\` or \`omit\`.'
+        : {}
+`
+        : `    : {}
+`
+    }
+    )
 
 /**
  * Subset + Intersection

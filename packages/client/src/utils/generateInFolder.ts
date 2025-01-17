@@ -1,7 +1,13 @@
 import Debug from '@prisma/debug'
 import { getEnginesPath } from '@prisma/engines'
 import { getBinaryTargetForCurrentPlatform, getNodeAPIName } from '@prisma/get-platform'
-import { type GetSchemaResult, getSchemaWithPath, mergeSchemas } from '@prisma/internals'
+import {
+  ConfigMetaFormat,
+  type GetSchemaResult,
+  getSchemaWithPath,
+  mergeSchemas,
+  parseEnvValue,
+} from '@prisma/internals'
 import {
   ClientEngineType,
   extractPreviewFeatures,
@@ -60,8 +66,24 @@ export async function generateInFolder({
   if (overrideEngineType) {
     process.env.PRISMA_CLIENT_ENGINE_TYPE = overrideEngineType
   }
+  function hackGenerators(config: ConfigMetaFormat) {
+    // TODO [simplification] wip hack to not have to update prisma-schema-wasm
+    if (process.env.PRISMA_HACK_GENERATOR_CONFIG_disableTypingSupportForHeavyFeatures === 'true') {
+      console.warn(
+        'Disabling typing support for heavy features due to PRISMA_HACK_GENERATOR_CONFIG_disableTypingSupportForHeavyFeatures',
+      )
+      for (const generator of config.generators) {
+        if (parseEnvValue(generator.provider) === 'prisma-client-js') {
+          generator.clientTypingSimplifications = {
+            disableTypingSupportForHeavyFeatures: true,
+          }
+        }
+      }
+    }
+  }
 
   const config = await getConfig({ datamodel: schemas, ignoreEnvVarErrors: true })
+  hackGenerators(config)
   const previewFeatures = extractPreviewFeatures(config)
   const clientEngineType = getClientEngineType(config.generators[0])
 

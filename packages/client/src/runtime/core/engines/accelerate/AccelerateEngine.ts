@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-namespace */
 /* eslint-disable @typescript-eslint/no-non-null-asserted-optional-chain */
 import { PrismaClientInitializationError } from '../../errors/PrismaClientInitializationError'
 import { BatchQueryEngineResult, Engine, EngineConfig, RequestBatchOptions, RequestOptions } from '../common/Engine'

@@ -2,7 +2,7 @@ import indent from 'indent-string'
 
 import { DMMF } from '../dmmf-types'
 import * as ts from '../ts-builders'
-import { capitalize, getFieldArgName, getSelectName } from '../utils'
+import { capitalize, getExtArgsGenericDeclarationStringIfNeeded, getFieldArgName, getSelectName } from '../utils'
 import { ArgsTypeBuilder } from './Args'
 import { TAB_SIZE } from './constants'
 import type { Generable } from './Generable'
@@ -43,7 +43,7 @@ export class Count implements Generable {
 
 ${ts.stringify(outputType)}
 
-export type ${getSelectName(name)}<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+export type ${getSelectName(name)}${getExtArgsGenericDeclarationStringIfNeeded(this.context)} = {
 ${indent(
   type.fields
     .map((field) => {

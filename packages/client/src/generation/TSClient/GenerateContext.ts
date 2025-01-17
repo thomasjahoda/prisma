@@ -27,4 +27,12 @@ export class GenerateContext implements GenerateContextOptions {
   isPreviewFeatureOn(previewFeature: string): boolean {
     return this.generator?.previewFeatures?.includes(previewFeature) ?? false
   }
+
+  isTypingSupportForHeavyFeaturesEnabled(): boolean {
+    return isTypingSupportForHeavyFeaturesEnabled(this.generator)
+  }
+}
+
+export function isTypingSupportForHeavyFeaturesEnabled(generator: GeneratorConfig | undefined): boolean {
+  return generator?.clientTypingSimplifications?.disableTypingSupportForHeavyFeatures !== true
 }

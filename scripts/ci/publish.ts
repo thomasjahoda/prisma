@@ -464,6 +464,7 @@ async function publish() {
     '--dry-run': Boolean,
     '--release': String, // TODO What does that do? Can we remove this? probably
     '--test': Boolean,
+    '--otherRegistry': Boolean,
   })
 
   if (!process.env.BUILDKITE_BRANCH) {

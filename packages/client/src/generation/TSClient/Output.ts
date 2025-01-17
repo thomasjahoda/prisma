@@ -3,10 +3,11 @@ import { hasOwnProperty } from '@prisma/internals'
 import type { DMMFHelper } from '../dmmf'
 import type { DMMF } from '../dmmf-types'
 import * as ts from '../ts-builders'
-import { getPayloadName } from '../utils'
+import { addExtArgsArgumentIfNeeded, getPayloadName } from '../utils'
 import { GraphQLScalarToJSTypeTable, needsNamespace } from '../utils/common'
+import { GenerateContext } from './GenerateContext'
 
-export function buildModelOutputProperty(field: DMMF.Field, dmmf: DMMFHelper) {
+export function buildModelOutputProperty(field: DMMF.Field, dmmf: DMMFHelper, context: GenerateContext) {
   let fieldTypeName = hasOwnProperty(GraphQLScalarToJSTypeTable, field.type)
     ? GraphQLScalarToJSTypeTable[field.type]
     : field.type
@@ -21,7 +22,7 @@ export function buildModelOutputProperty(field: DMMF.Field, dmmf: DMMFHelper) {
   if (field.kind === 'object') {
     const payloadType = ts.namedType(getPayloadName(field.type))
     if (!dmmf.isComposite(field.type)) {
-      payloadType.addGenericArgument(ts.namedType('ExtArgs'))
+      addExtArgsArgumentIfNeeded(payloadType, context)
     }
     fieldType = payloadType
   } else if (field.kind === 'enum') {

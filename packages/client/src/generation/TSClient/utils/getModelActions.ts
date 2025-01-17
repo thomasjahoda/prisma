@@ -13,5 +13,7 @@ export function getModelActions(dmmf: DMMFHelper, name: string) {
     mappingKeys.push('count' as DMMF.ModelAction)
   }
 
+  // TODO [simplification] disable actions here?
+
   return mappingKeys
 }

@@ -1,3 +1,4 @@
+import { assertNever } from '@prisma/internals'
 import indent from 'indent-string'
 import { klona } from 'klona'
 
@@ -5,6 +6,8 @@ import type { DMMFHelper } from '../dmmf'
 import { DMMF } from '../dmmf-types'
 import * as ts from '../ts-builders'
 import {
+  addExtArgsArgumentIfNeeded,
+  addExtArgsParameterIfNeeded,
   extArgsParam,
   getAggregateArgsName,
   getAggregateGetName,
@@ -14,6 +17,7 @@ import {
   getCountAggregateInputName,
   getCountAggregateOutputName,
   getCreateManyAndReturnOutputType,
+  getExtArgsGenericDeclarationStringIfNeeded,
   getFieldArgName,
   getFieldRefsTypeName,
   getGroupByArgsName,
@@ -37,7 +41,7 @@ import { getArgFieldJSDoc, getMethodJSDoc, getMethodJSDocBody, wrapComment } fro
 import { InputType } from './Input'
 import { ModelFieldRefs } from './ModelFieldRefs'
 import { buildOutputType } from './Output'
-import { buildModelPayload } from './Payload'
+import { buildModelPayload, buildTypesForModelFieldsByType } from './Payload'
 import { buildIncludeType, buildOmitType, buildScalarSelectType, buildSelectType } from './SelectIncludeOmit'
 import { getModelActions } from './utils/getModelActions'
 
@@ -157,7 +161,7 @@ export class Model implements Generable {
     return `
 
 
-export type ${groupByArgsName}<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+export type ${groupByArgsName}${getExtArgsGenericDeclarationStringIfNeeded(this.context)} = {
 ${indent(
   groupByRootField.args
     .map((arg) => {
@@ -275,7 +279,7 @@ ${
     : ''
 }
 
-export type ${aggregateArgsName}<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+export type ${aggregateArgsName}${getExtArgsGenericDeclarationStringIfNeeded(this.context)} = {
 ${indent(
   aggregateRootField.args
     .map((arg) => {
@@ -308,6 +312,7 @@ export type ${getAggregateGetName(model.name)}<T extends ${getAggregateArgsName(
     : GetScalarType<T[P], ${aggregateName}[P]>
 }`
   }
+
   public toTSWithoutNamespace(): string {
     const { model } = this
 
@@ -319,22 +324,29 @@ export type ${getAggregateGetName(model.name)}<T extends ${getAggregateArgsName(
       .moduleExport(
         ts.typeDeclaration(
           model.name,
-          ts.namedType(`$Result.DefaultSelection`).addGenericArgument(ts.namedType(getPayloadName(model.name))),
+          // disableTypingSupportForHeavyFeatures inverts where the simple scalars are stored.
+          // Normally, the scalars originate in the model payload.
+          // When simplified they originate in the <Model> type outside of the Prisma namespace. (to ease the load for the language-service and to be able to even split up the file in the future)
+          this.context.isTypingSupportForHeavyFeaturesEnabled()
+            ? ts.namedType(`$Result.DefaultSelection`).addGenericArgument(ts.namedType(getPayloadName(model.name)))
+            : buildTypesForModelFieldsByType(model, this.context).scalars,
         ),
       )
       .setDocComment(ts.docComment(docs))
 
     return ts.stringify(modelTypeExport)
   }
+
   public toTS(): string {
     const { model } = this
     const isComposite = this.dmmf.isComposite(model.name)
 
-    const omitType = this.context.isPreviewFeatureOn('omitApi')
-      ? ts.stringify(buildOmitType({ modelName: this.model.name, context: this.context, fields: this.type.fields }), {
-          newLine: 'leading',
-        })
-      : ''
+    const omitType =
+      this.context.isPreviewFeatureOn('omitApi') && this.context.isTypingSupportForHeavyFeaturesEnabled()
+        ? ts.stringify(buildOmitType({ modelName: this.model.name, context: this.context, fields: this.type.fields }), {
+            newLine: 'leading',
+          })
+        : ''
 
     const hasRelationField = model.fields.some((f) => f.kind === 'object')
     const includeType = hasRelationField
@@ -391,9 +403,12 @@ ${omitType}${includeType}${createManyAndReturnIncludeType}
 
 ${ts.stringify(buildModelPayload(this.model, this.context), { newLine: 'none' })}
 
-type ${model.name}GetPayload<S extends boolean | null | undefined | ${getModelArgName(
-      model.name,
-    )}> = $Result.GetResult<${getPayloadName(model.name)}, S>
+type ${model.name}GetPayload<S extends boolean | null | undefined | ${getModelArgName(model.name, 'DefaultArgs')}> = ${
+      this.context.isTypingSupportForHeavyFeaturesEnabled()
+        ? // TODO [bug] this does NOT set ExtArgs. So using this when using extensions will probably induce extreme load on TS because of equality checking
+          `$Result.GetResult<${getPayloadName(model.name)}, S, 'findUniqueOrThrow'>`
+        : `$Result.GetFindResult<${getPayloadName(model.name)}, S>`
+    }
 
 ${isComposite ? '' : new ModelDelegate(this.type, this.context).toTS()}
 
@@ -435,10 +450,10 @@ export class ModelDelegate implements Generable {
     const countArgsName = getModelArgName(name, DMMF.ModelAction.count)
     this.context.defaultArgsAliases.registerArgName(countArgsName)
 
-    const genericDelegateParams = [extArgsParam]
+    const genericDelegateParams = this.context.isTypingSupportForHeavyFeaturesEnabled() ? [extArgsParam] : []
 
     const excludedArgsForCount = ['select', 'include', 'distinct']
-    if (this.context.isPreviewFeatureOn('omitApi')) {
+    if (this.context.isPreviewFeatureOn('omitApi') && this.context.isTypingSupportForHeavyFeaturesEnabled()) {
       excludedArgsForCount.push('omit')
       genericDelegateParams.push(ts.genericParameter('ClientOptions').default(ts.objectType()))
     }
@@ -447,18 +462,28 @@ export class ModelDelegate implements Generable {
     }
     const excludedArgsForCountType = excludedArgsForCount.map((name) => `'${name}'`).join(' | ')
 
+    const genericDelegateParamsString =
+      genericDelegateParams.length !== 0
+        ? `<${genericDelegateParams.map((param) => ts.stringify(param)).join(', ')}>`
+        : ''
+
     return `\
 ${
   availableActions.includes(DMMF.ModelAction.aggregate)
-    ? `type ${countArgsName}<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    ? `type ${countArgsName}${getExtArgsGenericDeclarationStringIfNeeded(this.context)} = 
   Omit<${getModelArgName(name, DMMF.ModelAction.findMany)}, ${excludedArgsForCountType}> & {
     select?: ${getCountAggregateInputName(name)} | true
   }
 `
     : ''
 }
-export interface ${name}Delegate<${genericDelegateParams.map((param) => ts.stringify(param)).join(', ')}> {
-${indent(`[K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['${name}'], meta: { name: '${name}' } }`, TAB_SIZE)}
+export interface ${name}Delegate${genericDelegateParamsString} {
+${
+  this.context.isTypingSupportForHeavyFeaturesEnabled()
+    ? indent(`[K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['${name}'], meta: { name: '${name}' } }`, TAB_SIZE)
+    : // TODO [simplification] is this needed somewhere?
+      ''
+}
 ${nonAggregateActions
   .map((action) => {
     const method = buildModelDelegateMethod(name, action, this.context)
@@ -573,7 +598,7 @@ function buildModelDelegateMethod(modelName: string, actionName: DMMF.ModelActio
   const method = ts
     .method(actionName)
     .setDocComment(ts.docComment(getMethodJSDocBody(actionName, mapping, modelOrType)))
-    .addParameter(getNonAggregateMethodArgs(modelName, actionName))
+    .addParameter(getNonAggregateMethodArgs(modelName, actionName, context))
     .setReturnType(getReturnType({ modelName, actionName, context }))
 
   const generic = getNonAggregateMethodGenericParam(modelName, actionName)
@@ -583,8 +608,7 @@ function buildModelDelegateMethod(modelName: string, actionName: DMMF.ModelActio
   return method
 }
 
-function getNonAggregateMethodArgs(modelName: string, actionName: DMMF.ModelAction) {
-  getReturnType
+function getNonAggregateMethodArgs(modelName: string, actionName: DMMF.ModelAction, context: GenerateContext) {
   const makeParameter = (type: ts.TypeBuilder) => ts.parameter('args', type)
   if (actionName === DMMF.ModelAction.count) {
     const type = ts.omit(
@@ -603,9 +627,7 @@ function getNonAggregateMethodArgs(modelName: string, actionName: DMMF.ModelActi
   const type = ts
     .namedType('SelectSubset')
     .addGenericArgument(ts.namedType('T'))
-    .addGenericArgument(
-      ts.namedType(getModelArgName(modelName, actionName)).addGenericArgument(extArgsParam.toArgument()),
-    )
+    .addGenericArgument(addExtArgsArgumentIfNeeded(ts.namedType(getModelArgName(modelName, actionName)), context))
   const param = makeParameter(type)
 
   if (
@@ -682,7 +704,7 @@ export function getReturnType({
    * Important: We handle findMany or isList special, as we don't want chaining from there
    */
   if (isList) {
-    let result: ts.TypeBuilder = getResultType(modelName, actionName, context)
+    let result: ts.TypeBuilder = getResultType(modelName, actionName, ts.namedType('T'), context)
     if (isChaining) {
       result = ts.unionType(result).addVariant(ts.namedType('Null'))
     }
@@ -692,16 +714,21 @@ export function getReturnType({
 
   if (isChaining && actionName === DMMF.ModelAction.findUniqueOrThrow) {
     const nullType = isNullable ? ts.nullType : ts.namedType('Null')
-    const result = ts.unionType<ts.TypeBuilder>(getResultType(modelName, actionName, context)).addVariant(nullType)
+    const result = ts
+      .unionType<ts.TypeBuilder>(getResultType(modelName, actionName, ts.namedType('T'), context))
+      .addVariant(nullType)
     return getFluentWrapper(modelName, context, result, nullType)
   }
 
-  if (actionName === DMMF.ModelAction.findFirst || actionName === DMMF.ModelAction.findUnique) {
-    const result = ts.unionType<ts.TypeBuilder>(getResultType(modelName, actionName, context)).addVariant(ts.nullType)
-    return getFluentWrapper(modelName, context, result, ts.nullType)
-  }
+  // if (actionName === DMMF.ModelAction.findFirst || actionName === DMMF.ModelAction.findUnique) {
+  //   // TODO [simplification] null already from getResultType, so removed it here. This is a general change though
+  //   const result = ts
+  //     .unionType<ts.TypeBuilder>(getResultType(modelName, actionName, ts.namedType('T'), context))
+  //     .addVariant(ts.nullType)
+  //   return getFluentWrapper(modelName, context, result, ts.nullType)
+  // }
 
-  return getFluentWrapper(modelName, context, getResultType(modelName, actionName, context))
+  return getFluentWrapper(modelName, context, getResultType(modelName, actionName, ts.namedType('T'), context))
 }
 
 function getFluentWrapper(
@@ -710,38 +737,89 @@ function getFluentWrapper(
   resultType: ts.TypeBuilder,
   nullType: ts.TypeBuilder = ts.neverType,
 ) {
-  const result = ts
-    .namedType(fluentWrapperName(modelName))
-    .addGenericArgument(resultType)
-    .addGenericArgument(nullType)
-    .addGenericArgument(extArgsParam.toArgument())
-  if (context.isPreviewFeatureOn('omitApi')) {
+  const result = addExtArgsArgumentIfNeeded(
+    ts.namedType(fluentWrapperName(modelName)).addGenericArgument(resultType).addGenericArgument(nullType),
+    context,
+  )
+  if (context.isPreviewFeatureOn('omitApi') && context.isTypingSupportForHeavyFeaturesEnabled()) {
     result.addGenericArgument(ts.namedType('ClientOptions'))
   }
   return result
 }
 
-function getResultType(modelName: string, actionName: DMMF.ModelAction, context: GenerateContext) {
-  const result = ts
-    .namedType('$Result.GetResult')
-    .addGenericArgument(ts.namedType(getPayloadName(modelName)).addGenericArgument(extArgsParam.toArgument()))
-    .addGenericArgument(ts.namedType('T'))
-    .addGenericArgument(ts.stringLiteral(actionName))
-  if (context.isPreviewFeatureOn('omitApi')) {
-    result.addGenericArgument(ts.namedType('ClientOptions'))
+function getResultType(
+  modelName: string,
+  actionName: DMMF.ModelAction,
+  argsType: ts.NamedType,
+  context: GenerateContext,
+): ts.TypeBuilder {
+  if (context.isTypingSupportForHeavyFeaturesEnabled()) {
+    // extensions may influence all kinds of operations, so use the ridiculously heavy lookup for the model and operation
+    const result = ts
+      .namedType('$Result.GetResult')
+      .addGenericArgument(ts.namedType(getPayloadName(modelName)).addGenericArgument(extArgsParam.toArgument()))
+      .addGenericArgument(argsType)
+      .addGenericArgument(ts.stringLiteral(actionName))
+    if (context.isPreviewFeatureOn('omitApi')) {
+      result.addGenericArgument(ts.namedType('ClientOptions'))
+    }
+    return result
+  } else {
+    // same logic as $Result.GetResult
+    const operationPayload = ts.namedType(getPayloadName(modelName))
+    switch (actionName) {
+      case DMMF.ModelAction.findUnique:
+      case DMMF.ModelAction.findFirst:
+        return makeNullable(
+          ts.namedType('$Result.GetFindResult').addGenericArgument(operationPayload).addGenericArgument(argsType),
+        )
+      case DMMF.ModelAction.findUniqueOrThrow:
+      case DMMF.ModelAction.findFirstOrThrow:
+      case DMMF.ModelAction.create:
+      case DMMF.ModelAction.update:
+      case DMMF.ModelAction.upsert:
+      case DMMF.ModelAction.delete:
+        return ts.namedType('$Result.GetFindResult').addGenericArgument(operationPayload).addGenericArgument(argsType)
+      case DMMF.ModelAction.findMany:
+      case DMMF.ModelAction.createManyAndReturn:
+        return ts.array(
+          ts.namedType('$Result.GetFindResult').addGenericArgument(operationPayload).addGenericArgument(argsType),
+        )
+      case DMMF.ModelAction.createMany:
+      case DMMF.ModelAction.updateMany:
+      case DMMF.ModelAction.deleteMany:
+        return ts.namedType('$Result.GetBatchResult')
+      case DMMF.ModelAction.groupBy:
+        return ts
+          .namedType('$Result.GetGroupByResult')
+          .addGenericArgument(operationPayload)
+          .addGenericArgument(argsType)
+      case DMMF.ModelAction.count:
+        return ts.namedType('$Result.GetCountResult').addGenericArgument(argsType)
+      case DMMF.ModelAction.aggregate:
+        return ts
+          .namedType('$Result.GetAggregateResult')
+          .addGenericArgument(operationPayload)
+          .addGenericArgument(argsType)
+      case DMMF.ModelAction.findRaw:
+      case DMMF.ModelAction.aggregateRaw:
+        return ts.namedType('JsonObject')
+      default:
+        assertNever(actionName, `Unhandled action ${actionName as any}`)
+    }
   }
-  return result
 }
 
 function buildFluentWrapperDefinition(modelName: string, outputType: DMMF.OutputType, context: GenerateContext) {
   const definition = ts.interfaceDeclaration(fluentWrapperName(modelName))
-  definition
-    .addGenericParameter(ts.genericParameter('T'))
-    .addGenericParameter(ts.genericParameter('Null').default(ts.neverType))
-    .addGenericParameter(extArgsParam)
-    .extends(ts.prismaPromise(ts.namedType('T')))
+  addExtArgsParameterIfNeeded(
+    definition
+      .addGenericParameter(ts.genericParameter('T'))
+      .addGenericParameter(ts.genericParameter('Null').default(ts.neverType)),
+    context,
+  ).extends(ts.prismaPromise(ts.namedType('T')))
 
-  if (context.isPreviewFeatureOn('omitApi')) {
+  if (context.isPreviewFeatureOn('omitApi') && context.isTypingSupportForHeavyFeaturesEnabled()) {
     definition.addGenericParameter(ts.genericParameter('ClientOptions').default(ts.objectType()))
   }
 
@@ -755,9 +833,7 @@ function buildFluentWrapperDefinition(modelName: string, outputType: DMMF.Output
           field.name !== '_count',
       )
       .map((field) => {
-        const fieldArgType = ts
-          .namedType(getFieldArgName(field, modelName))
-          .addGenericArgument(extArgsParam.toArgument())
+        const fieldArgType = addExtArgsArgumentIfNeeded(ts.namedType(getFieldArgName(field, modelName)), context)
 
         const argsParam = ts.genericParameter('T').extends(fieldArgType).default(ts.objectType())
         return ts
@@ -857,4 +933,8 @@ function subset(arg: ts.TypeBuilder, baseType: ts.TypeBuilder) {
 
 function fluentWrapperName(modelName: string) {
   return `Prisma__${modelName}Client`
+}
+
+function makeNullable<T extends ts.TypeBuilder>(type: T): ts.UnionType<T | typeof ts.nullType> {
+  return ts.unionType([type, ts.nullType])
 }

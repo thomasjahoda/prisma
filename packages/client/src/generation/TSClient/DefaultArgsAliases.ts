@@ -1,5 +1,8 @@
+import { GeneratorConfig } from '@prisma/generator-helper'
+
 import * as ts from '../ts-builders'
 import { extArgsParam } from '../utils'
+import { isTypingSupportForHeavyFeaturesEnabled } from './GenerateContext'
 
 type AliasDefinition = {
   newName: string
@@ -9,6 +12,8 @@ type AliasDefinition = {
 export class DefaultArgsAliases {
   private existingArgTypes = new Set<string>()
   private possibleAliases: AliasDefinition[] = []
+
+  constructor(private generatorConfig: GeneratorConfig) {}
 
   addPossibleAlias(newName: string, legacyName: string) {
     this.possibleAliases.push({ newName, legacyName })
@@ -27,15 +32,19 @@ export class DefaultArgsAliases {
         continue
       }
 
+      const type = ts.namedType(newName)
+      if (isTypingSupportForHeavyFeaturesEnabled(this.generatorConfig)) {
+        type.addGenericArgument(extArgsParam.toArgument())
+      }
+
+      const typeDeclaration = ts.typeDeclaration(legacyName, type)
+      if (isTypingSupportForHeavyFeaturesEnabled(this.generatorConfig)) {
+        typeDeclaration.addGenericParameter(extArgsParam)
+      }
+
       aliases.push(
         ts.stringify(
-          ts
-            .moduleExport(
-              ts
-                .typeDeclaration(legacyName, ts.namedType(newName).addGenericArgument(extArgsParam.toArgument()))
-                .addGenericParameter(extArgsParam),
-            )
-            .setDocComment(ts.docComment(`@deprecated Use ${newName} instead`)),
+          ts.moduleExport(typeDeclaration).setDocComment(ts.docComment(`@deprecated Use ${newName} instead`)),
           { indentLevel: 1 },
         ),
       )
