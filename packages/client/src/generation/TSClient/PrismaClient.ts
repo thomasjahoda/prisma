@@ -141,8 +141,12 @@ function clientTypeMapOthersDefinition(context: GenerateContext) {
 }`
 }
 
+function clientTypeMapContent(context: GenerateContext) {
+  return `${ts.stringify(clientTypeMapModelsDefinition(context))} & ${clientTypeMapOthersDefinition(context)}`
+}
+
 function clientTypeMapDefinition(context: GenerateContext) {
-  const typeMap = `${ts.stringify(clientTypeMapModelsDefinition(context))} & ${clientTypeMapOthersDefinition(context)}`
+  const typeMap = clientTypeMapContent(context)
 
   return `
 interface TypeMapCb extends $Utils.Fn<{extArgs: $Extensions.InternalArgs, clientOptions: PrismaClientOptions }, $Utils.Record<string, any>> {
@@ -154,16 +158,19 @@ export type TypeMap<ExtArgs extends $Extensions.InternalArgs = $Extensions.Defau
 
 function clientExtensionsDefinitions(context: GenerateContext) {
   if (!context.isTypingSupportForHeavyFeaturesEnabled()) {
-    // TODO [simplification] add comments or generally just don't generate unnecessary types
+    const typeMapContent = clientTypeMapContent(context)
+    // TODO [simplification] remove TypeMap completely? maybe add flag to disable it, because e.g. I don't need it. However, now it won't be this big anymore anyways.
     return `
+// Removed model operations from TypeMap due to disableTypingSupportForHeavyFeatures. Note that this type is currently unused by the client itself.
+export type TypeMap = ${typeMapContent};
+
 // disabled typing for extensions due to disableTypingSupportForHeavyFeatures
-type TypeMapCb = never;
-export type TypeMap = never;
+// type TypeMapCb = never;
 export const defineExtension: unknown = undefined as unknown;
 `
   }
 
-  const typeMap = clientTypeMapDefinition(context)
+  const typeMapDefinition = clientTypeMapDefinition(context)
   const define = ts.moduleExport(
     ts.constDeclaration(
       'defineExtension',
@@ -175,7 +182,7 @@ export const defineExtension: unknown = undefined as unknown;
     ),
   )
 
-  return [typeMap, ts.stringify(define)].join('\n')
+  return [typeMapDefinition, ts.stringify(define)].join('\n')
 }
 
 function extendsPropertyDefinition(context: GenerateContext) {
@@ -489,9 +496,15 @@ export class PrismaClient<
   }
 > {
 ${
-  '' // TODO [simplification] directly generate 'other' stuff here
+  // TODO [simplification] what is 'other'? Directly generate the properties here instead of simply removing them?
+  this.context.isTypingSupportForHeavyFeaturesEnabled()
+    ? indent(`[K: symbol]: { types: Prisma.TypeMap<ExtArgs>['other'] }`, TAB_SIZE)
+    : '' +
+      indent(
+        "// removed `[K: symbol]: { types: Prisma.TypeMap<ExtArgs>['other'] }` due to disableTypingSupportForHeavyFeatures",
+        TAB_SIZE,
+      )
 }
-  [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['other'] }
 
   ${indent(this.jsDoc, TAB_SIZE)}
 

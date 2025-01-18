@@ -406,8 +406,9 @@ ${ts.stringify(buildModelPayload(this.model, this.context), { newLine: 'none' })
 type ${model.name}GetPayload<S extends boolean | null | undefined | ${getModelArgName(model.name, 'DefaultArgs')}> = ${
       this.context.isTypingSupportForHeavyFeaturesEnabled()
         ? // TODO [bug] this does NOT set ExtArgs. So using this when using extensions will probably induce extreme load on TS because of equality checking
-          `$Result.GetResult<${getPayloadName(model.name)}, S, 'findUniqueOrThrow'>`
-        : `$Result.GetFindResult<${getPayloadName(model.name)}, S>`
+          // TODO [simplification] also set to 'findUniqueOrThrow' even though it is default? only doing for simplification to not change types supporting extensions
+          `$Result.GetResult<${getPayloadName(model.name)}, S>`
+        : `$Result.GetFindResult<${getPayloadName(model.name)}, S, 'findUniqueOrThrow'>`
     }
 
 ${isComposite ? '' : new ModelDelegate(this.type, this.context).toTS()}
@@ -720,13 +721,14 @@ export function getReturnType({
     return getFluentWrapper(modelName, context, result, nullType)
   }
 
-  // if (actionName === DMMF.ModelAction.findFirst || actionName === DMMF.ModelAction.findUnique) {
-  //   // TODO [simplification] null already from getResultType, so removed it here. This is a general change though
-  //   const result = ts
-  //     .unionType<ts.TypeBuilder>(getResultType(modelName, actionName, ts.namedType('T'), context))
-  //     .addVariant(ts.nullType)
-  //   return getFluentWrapper(modelName, context, result, ts.nullType)
-  // }
+  if (actionName === DMMF.ModelAction.findFirst || actionName === DMMF.ModelAction.findUnique) {
+    let result = getResultType(modelName, actionName, ts.namedType('T'), context)
+    if (context.isTypingSupportForHeavyFeaturesEnabled()) {
+      // TODO [simplification] this is completely unnecessary, as null already comes from getResultType if the operation has null. So could be removed for default mode too. This is a general change though and I didn't wanna touch the snapshots.
+      result = ts.unionType<ts.TypeBuilder>(result).addVariant(ts.nullType)
+    }
+    return getFluentWrapper(modelName, context, result, ts.nullType)
+  }
 
   return getFluentWrapper(modelName, context, getResultType(modelName, actionName, ts.namedType('T'), context))
 }

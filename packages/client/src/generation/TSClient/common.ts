@@ -150,14 +150,12 @@ export const commonCodeTS = (
   tsWithoutNamespace: () => `import * as runtime from '${runtimeBase}/${runtimeNameTs}';
 ${
   context.isTypingSupportForHeavyFeaturesEnabled()
-    ? `
-import $Types = runtime.Types // general types
+    ? `import $Types = runtime.Types // general types
 import $Public = runtime.Types.Public
 import $Utils = runtime.Types.Utils
 import $Extensions = runtime.Types.Extensions
 import $Result = runtime.Types.Result`
-    : `
-import $Types = runtime.Types // general types
+    : `import $Types = runtime.Types // general types
 import $Public = runtime.Types.Public
 import $Utils = runtime.Types.Utils
 import $Extensions = runtime.Types.ExtensionsSimplified
@@ -211,16 +209,19 @@ export type Metric<T> = runtime.Metric<T>
 export type MetricHistogram = runtime.MetricHistogram
 export type MetricHistogramBucket = runtime.MetricHistogramBucket
 
-/**
+${
+  context.isTypingSupportForHeavyFeaturesEnabled()
+    ? `/**
 * Extensions
 */
-// TODO [simplification] remove this if flag set?
-// export import Extension = $Extensions.UserArgs
-// export import getExtensionContext = runtime.Extensions.getExtensionContext
-// export import Args = $Public.Args
-// export import Payload = $Public.Payload
-// export import Result = $Public.Result
-// export import Exact = $Public.Exact
+export import Extension = $Extensions.UserArgs
+export import getExtensionContext = runtime.Extensions.getExtensionContext
+export import Args = $Public.Args
+export import Payload = $Public.Payload
+export import Result = $Public.Result
+export import Exact = $Public.Exact`
+    : '// Types `Extension`, `Args`, `Payload`, `Result`, `Exact` are not available due to disableTypingsSupportForHeavyFeatures'
+}
 
 /**
  * Prisma Client JS version: ${clientVersion}
@@ -285,12 +286,10 @@ type SelectAndInclude = {
 
 ${
   context.isTypingSupportForHeavyFeaturesEnabled()
-    ? `
-type SelectAndOmit = {
+    ? `type SelectAndOmit = {
   select: any
   omit: any
-}
-`
+}`
     : ''
 }
 
@@ -344,14 +343,12 @@ export type SelectSubset<T, U> = {
     ? 'Please either choose \`select\` or \`include\`.'
     ${
       context.isTypingSupportForHeavyFeaturesEnabled()
-        ? `    : T extends SelectAndOmit
-        ? 'Please either choose \`select\` or \`omit\`.'
-        : {}
-`
+        ? `: T extends SelectAndOmit
+      ? 'Please either choose \`select\` or \`omit\`.'
+      : {}`
         : `    : {}
 `
-    }
-    )
+    })
 
 /**
  * Subset + Intersection

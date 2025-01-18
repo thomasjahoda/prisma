@@ -144,7 +144,7 @@ describe('generator', () => {
         Validation Error Count: 2
         [Context: getDmmf]
 
-        Prisma CLI Version : 0.0.0"
+        Prisma CLI Version : 5.22.3"
       `)
     }
   })

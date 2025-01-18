@@ -37,7 +37,7 @@ export type ClientTypingSimplifications = {
   /**
    * Removes typing support for the following features:
    * - extensions
-   * - composites
+   * - composite types (available in MongoDB only)
    * - omitApi: local (via Args) and global omit (via ClientOptions)
    *
    * Removes a lot of generics, conditional types and complexity from the generated client typings.
