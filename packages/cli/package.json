@@ -1,5 +1,5 @@
 {
-  "version": "0.0.0",
+  "version": "5.22.5",
   "name": "prisma",
   "description": "Prisma is an open-source database toolkit. It includes a JavaScript/TypeScript ORM for Node.js, migrations and a modern GUI to view and edit the data in your database. You can use Prisma in new projects or add it to an existing one.",
   "keywords": [
@@ -41,7 +41,7 @@
     "node": ">=16.13"
   },
   "prisma": {
-    "prismaCommit": "placeholder-for-commit-hash-replaced-during-publishing-in-publish-ts"
+    "prismaCommit": "34f91671767926a0ecf4c260eb6c75e233b3532b"
   },
   "files": [
     "README.md",

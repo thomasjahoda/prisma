@@ -1,6 +1,6 @@
 {
   "name": "@prisma/instrumentation",
-  "version": "0.0.0",
+  "version": "5.22.5",
   "description": "OpenTelemetry compliant instrumentation for Prisma Client",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

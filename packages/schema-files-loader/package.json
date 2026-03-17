@@ -1,6 +1,6 @@
 {
   "name": "@prisma/schema-files-loader",
-  "version": "0.0.0",
+  "version": "5.22.5",
   "description": "Package for resolving and loading schema files when schema is split into multiple files",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
