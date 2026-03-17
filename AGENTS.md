@@ -74,6 +74,9 @@
   - Default Jest/Vitest runner is invoked via `pnpm --filter @prisma/<pkg> test <pattern>`; it wraps `dotenv` and expects `.db.env`.
     - Some packages already use Vitest, `packages/cli` uses both for different tests as it's in the process of transition, older packages still use Jest.
   - Functional generated clients in `packages/client/tests/functional/**/.generated` import `packages/client/runtime/client.js` directly; runtime changes in `src/runtime` may need corresponding runtime bundle updates to be exercised by functional tests.
+  - `packages/client/src/__tests__/types/types.test.ts` now targets `test.client.ts` for engine-specific type fixtures; older `getClientEngineType()`-based helpers are stale in current Prisma.
+  - The simplified type-test mode currently relies on the process-global env hack `PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES`; run those tests sequentially, not concurrently, or fixtures can interfere with each other.
+  - `packages/client/src/__tests__/integration/happy/not-so-exhaustive-schema*` fixtures are Prisma 7 style: keep datasource URLs out of `schema.prisma`, use `prisma.config.ts` for connection config, and import `getDMMF` from `@prisma/client-generator-js`.
   - Inline snapshots can be sensitive to formatting; prefer concise expectations unless the exact message matters.
 
 - **Environment loading**: Prisma 7 removes automatic `.env` loading.

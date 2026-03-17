@@ -7,6 +7,7 @@ import { bold, red } from 'kleur/colors'
 import { match } from 'ts-pattern'
 
 import { ErrorArea, getWasmError, isWasmPanic, RustPanic, WasmPanic } from '../panic'
+import { parseEnvValue } from '../utils/parseEnvValue'
 import { type SchemaFileInput } from '../utils/schemaFileInput'
 import { prismaSchemaWasm } from '../wasm'
 import { addVersionDetailsToErrorMessage } from './errorHelpers'
@@ -69,6 +70,22 @@ ${detailsHeader} ${message}`
  * Wasm'd version of `getConfig`.
  */
 export async function getConfig(options: GetConfigOptions): Promise<ConfigMetaFormat> {
+  function hackGenerators(config: ConfigMetaFormat) {
+    // TODO [simplification] wip hack to not have to update prisma-schema-wasm
+    if (process.env.PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES === 'true') {
+      console.warn(
+        'Disabling typing support for heavy features due to PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES',
+      )
+      for (const generator of config.generators) {
+        if (parseEnvValue(generator.provider) === 'prisma-client-js') {
+          generator.clientTypingSimplifications = {
+            disableTypingSupportForHeavyFeatures: true,
+          }
+        }
+      }
+    }
+  }
+
   const debugErrorType = createDebugErrorType(debug, 'getConfigWasm')
   debug(`Using getConfig Wasm`)
 
@@ -118,6 +135,7 @@ export async function getConfig(options: GetConfigOptions): Promise<ConfigMetaFo
     debug('config data retrieved without errors in getConfig Wasm')
     const { right: data } = configEither
 
+    hackGenerators(data)
     for (const generator of data.generators) {
       await resolveBinaryTargets(generator)
     }

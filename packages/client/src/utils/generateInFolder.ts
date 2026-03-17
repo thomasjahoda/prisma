@@ -3,8 +3,8 @@ import path from 'node:path'
 
 import { generateClient } from '@prisma/client-generator-js'
 import Debug from '@prisma/debug'
-import { type GetSchemaResult, getSchemaWithPath, mergeSchemas } from '@prisma/internals'
 import { extractPreviewFeatures, getConfig, getDMMF, getPackedPackage } from '@prisma/internals'
+import { type GetSchemaResult, getSchemaWithPath, mergeSchemas } from '@prisma/internals'
 import copy from '@timsuchanek/copy'
 import { performance } from 'perf_hooks'
 

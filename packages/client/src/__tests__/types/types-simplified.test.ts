@@ -2,11 +2,11 @@ import fs from 'fs'
 import path from 'path'
 import { runTest } from './types-test-logic'
 
-describe('valid types', () => {
+describe('valid types simplified', () => {
   const subDirs = getSubDirs(__dirname)
   const subDirNames = subDirs.map((dir) => path.basename(dir))
-  test.concurrent.each(subDirNames)(`%s`, async (testName) => {
-    await runTest(testName, 'normal')
+  test.each(subDirNames)(`%s`, async (testName) => {
+    await runTest(testName, 'simplified')
   })
 })
 

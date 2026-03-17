@@ -14,6 +14,7 @@ import { buildQueryCompilerWasmModule } from '../utils/buildGetQueryCompilerWasm
 import { buildRequirePath } from '../utils/buildRequirePath'
 import { commonCodeJS, commonCodeTS } from './common'
 import { Count } from './Count'
+import { DefaultArgsAliases } from './DefaultArgsAliases'
 import { Enum } from './Enum'
 import { FieldRefInput } from './FieldRefInput'
 import { type Generable } from './Generable'
@@ -120,6 +121,7 @@ Object.assign(exports, Prisma)
       genericArgsInfo: this.genericsInfo,
       generator: this.options.generator,
       provider: this.options.activeProvider,
+      defaultArgsAliases: new DefaultArgsAliases(this.options.generator),
     })
 
     const prismaClientClass = new PrismaClientClass(
@@ -130,7 +132,7 @@ Object.assign(exports, Prisma)
       this.options.browser,
     )
 
-    const commonCode = commonCodeTS(this.options)
+    const commonCode = commonCodeTS(this.options, context)
     const modelAndTypes = Object.values(this.dmmf.typeAndModelMap).reduce((acc, modelOrType) => {
       if (this.dmmf.outputTypeMap.model[modelOrType.name]) {
         acc.push(new Model(modelOrType, context))
@@ -255,6 +257,11 @@ ${this.dmmf.inputObjectTypes.prisma
   .join('\n')}
 
 ${this.dmmf.inputObjectTypes.model?.map((inputType) => new InputType(inputType, context).toTS()).join('\n') ?? ''}
+
+/**
+ * Aliases for legacy arg types
+ */
+${context.defaultArgsAliases.generateAliases()}
 
 /**
  * Batch Payload for updateMany & deleteMany & createMany
