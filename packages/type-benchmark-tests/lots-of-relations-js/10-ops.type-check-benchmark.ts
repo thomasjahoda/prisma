@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-floating-promises */
 
 // @ts-ignore
-import { PrismaClient } from './generated/client'
+import { PrismaClient } from './generated'
 
-const client: PrismaClient<'info'> = undefined as any
+const client: PrismaClient = undefined as any
 
 client.model0.findMany({ take: 5, select: { model1: true } })
 client.model1.findUnique({ where: { id: 1 }, select: { model2: true } })
@@ -30,4 +30,4 @@ client.model0.findMany({
   },
   select: { model1: true },
 })
-// type-check-benchmark-instantiations: 171613
+// type-check-benchmark-instantiations: 3813

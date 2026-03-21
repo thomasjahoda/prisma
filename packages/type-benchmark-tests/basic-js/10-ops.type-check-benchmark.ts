@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-floating-promises */
 
 // @ts-ignore
-import { PrismaClient } from './generated/client'
+import { PrismaClient } from './generated'
 
-const client: PrismaClient<'info'> = undefined as any
+const client: PrismaClient = undefined as any
 
 client.link.findUnique({
   where: { id: 'some_link_id' },
@@ -79,4 +79,4 @@ client.user.create({
     name: 'New User',
   },
 })
-// type-check-benchmark-instantiations: 171453
+// type-check-benchmark-instantiations: 4744

@@ -15,8 +15,9 @@
     - Query compilation: `packages/client/src/__tests__/benchmarks/query-performance/compilation.bench.ts`
     - Query interpreter/data mapper: `packages/client-engine-runtime/bench/interpreter.bench.ts`
     - Client generation: `packages/client/src/__tests__/benchmarks/huge-schema/`, `packages/client/src/__tests__/benchmarks/lots-of-relations/`
-  - Type benchmarks live in `packages/type-benchmark-tests`; local comparison directories suffixed with `-js-simplified` use `provider = "prisma-client-js"` and are generated with `PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES=true` by the local harness in `packages/type-benchmark-tests/test.ts`.
+  - Type benchmarks live in `packages/type-benchmark-tests`; plain `-js` directories use `provider = "prisma-client-js"` with the regular client types, and local comparison directories suffixed with `-js-simplified` use `provider = "prisma-client-js"` plus `PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES=true` via the local harness in `packages/type-benchmark-tests/test.ts`.
   - Additional local comparison directories suffixed with `-ts-simplified` use `provider = "prisma-client-ts"` and the same env hack to benchmark the simplified `client-generator-ts` output.
+  - `packages/type-benchmark-tests/**/*.ts` is ignored by ESLint; those benchmark fixtures are handled by their custom benchmark/type-check harnesses rather than by repo linting.
   - The type benchmark harness auto-discovers every `*.bench.ts` file in each schema directory and runs them directly, so adding a new standalone benchmark file is enough to extend coverage.
   - The harness also auto-discovers `*.type-check-benchmark.ts` files and runs them through `tsc --extendedDiagnostics` via `typeCheckingBenchmarkExecution.ts`; each file stores its reference total as `// type-check-benchmark-instantiations: <count>`.
   - For `prisma-client-js` custom outputs, simplified types show up in `generated/index.d.ts`; `generated/client.ts` remains a compatibility entrypoint, so benchmark fixtures that want to measure simplified typings need to import `./generated` instead of `./generated/client`.

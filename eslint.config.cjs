@@ -37,6 +37,7 @@ module.exports = [
       '**/__fixtures__/**',
       '**/generated/**',
       '**/.generated/**',
+      'packages/type-benchmark-tests/**/*.ts',
       '**/prism.ts',
       '**/charm.ts',
       '**/pnpm-lock.yaml',

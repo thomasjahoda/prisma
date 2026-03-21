@@ -3,5 +3,6 @@ generated
 # tracked benchmark directories for local AI tasks and keep matching benchmark
 # files in sync when making changes to the type benchmark suite.
 /learningsuite
+/learningsuite-js
 /learningsuite-js-simplified
 /learningsuite-ts-simplified
