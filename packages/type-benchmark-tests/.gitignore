@@ -4,3 +4,4 @@ generated
 # files in sync when making changes to the type benchmark suite.
 /learningsuite
 /learningsuite-js-simplified
+/learningsuite-ts-simplified

@@ -1,7 +1,11 @@
+import { GenerateContext } from './GenerateContext'
 import { nullTypes } from './NullTypes'
 import type { TSClientOptions } from './TSClient'
 
-export const commonCodeTS = ({ clientVersion, engineVersion, generator }: TSClientOptions) => {
+export const commonCodeTS = (
+  { clientVersion, engineVersion, generator }: TSClientOptions,
+  context: GenerateContext,
+) => {
   return `export type DMMF = typeof runtime.DMMF
 
 export type PrismaPromise<T> = runtime.Types.Public.PrismaPromise<T>
@@ -48,12 +52,16 @@ export type DecimalJsLike = runtime.DecimalJsLike
 /**
 * Extensions
 */
-export type Extension = runtime.Types.Extensions.UserArgs
+${
+  context.isTypingSupportForHeavyFeaturesEnabled()
+    ? `export type Extension = runtime.Types.Extensions.UserArgs
 export const getExtensionContext = runtime.Extensions.getExtensionContext
 export type Args<T, F extends runtime.Operation> = runtime.Types.Public.Args<T, F>
 export type Payload<T, F extends runtime.Operation = never> = runtime.Types.Public.Payload<T, F>
 export type Result<T, A, F extends runtime.Operation> = runtime.Types.Public.Result<T, A, F>
-export type Exact<A, W> = runtime.Types.Public.Exact<A, W>
+export type Exact<A, W> = runtime.Types.Public.Exact<A, W>`
+    : '// Types `Extension`, `Args`, `Payload`, `Result`, `Exact` are not available due to disableTypingSupportForHeavyFeatures'
+}
 
 export type PrismaVersion = {
   client: string

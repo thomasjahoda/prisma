@@ -6,7 +6,7 @@ import { FieldRefInput } from '../FieldRefInput'
 import { GenerateContext } from '../GenerateContext'
 import { globalOmitConfig } from '../globalOmit'
 import type { TSClientOptions } from '../TSClient'
-import { clientTypeMapDefinition } from '../TypeMap'
+import { clientExtensionsDefinitions } from '../TypeMap'
 
 const jsDocHeader = `/*
  * WARNING: This is an internal file that is subject to change!
@@ -40,7 +40,7 @@ ${imports.join('\n')}
 
 export type * from '${context.importFileName(`../models`)}'
 
-${commonCodeTS(options)}
+${commonCodeTS(options, context)}
 ${new Enum(
   {
     name: 'ModelName',
@@ -49,7 +49,7 @@ ${new Enum(
   true,
 ).toTS()}
 
-${clientTypeMapDefinition(context)}
+${clientExtensionsDefinitions(context)}
 
 /**
  * Enums
@@ -75,7 +75,6 @@ export type BatchPayload = {
   count: number
 }
 
-${clientExtensionsDefinitions()}
 export type DefaultPrismaClient = PrismaClient
 export type ErrorFormat = 'pretty' | 'colorless' | 'minimal'
 ${ts.stringify(ts.moduleExport(buildClientOptions(context)))}
@@ -143,25 +142,6 @@ export type PrismaAction =
 export type TransactionClient = Omit<DefaultPrismaClient, ${transactionClientDenyList}>
 
 `
-}
-
-function clientExtensionsDefinitions() {
-  const define = ts.moduleExport(
-    ts.constDeclaration('defineExtension').setValue(
-      ts
-        .namedValue('runtime.Extensions.defineExtension')
-        .as(ts.namedType('unknown'))
-        .as(
-          ts
-            .namedType('runtime.Types.Extensions.ExtendsHook')
-            .addGenericArgument(ts.stringLiteral('define'))
-            .addGenericArgument(ts.namedType('TypeMapCb'))
-            .addGenericArgument(ts.namedType('runtime.Types.Extensions.DefaultArgs')),
-        ),
-    ),
-  )
-
-  return ts.stringify(define)
 }
 
 function buildClientOptions(context: GenerateContext) {
@@ -245,8 +225,9 @@ function buildClientOptions(context: GenerateContext) {
           `),
   )
 
-  otherOptions.add(
-    ts.property('omit', ts.namedType('GlobalOmitConfig')).optional().setDocComment(ts.docComment`
+  if (context.isTypingSupportForHeavyFeaturesEnabled()) {
+    otherOptions.add(
+      ts.property('omit', ts.namedType('GlobalOmitConfig')).optional().setDocComment(ts.docComment`
         Global configuration for omitting model fields by default.
 
         @example
@@ -260,7 +241,8 @@ function buildClientOptions(context: GenerateContext) {
         })
         \`\`\`
       `),
-  )
+    )
+  }
 
   if (context.isSqlProvider()) {
     otherOptions.add(

@@ -29,30 +29,32 @@ export function createClientFile(context: GenerateContext, options: TSClientOpti
       .moduleExport(ts.constDeclaration('PrismaClient').setValue(ts.functionCall('$Class.getPrismaClientClass', [])))
       .setDocComment(getPrismaClientClassDocComment(context)),
     ts.moduleExport(
-      ts
-        .typeDeclaration(
-          'PrismaClient',
-          ts
-            .namedType('$Class.PrismaClient')
-            .addGenericArgument(ts.namedType('LogOpts'))
-            .addGenericArgument(ts.namedType('OmitOpts'))
-            .addGenericArgument(ts.namedType('ExtArgs')),
-        )
-        .addGenericParameter(
+      (() => {
+        const prismaClient = ts.typeDeclaration('PrismaClient', ts.namedType('$Class.PrismaClient'))
+        prismaClient.type.addGenericArgument(ts.namedType('LogOpts'))
+        prismaClient.addGenericParameter(
           ts.genericParameter('LogOpts').extends(ts.namedType('Prisma.LogLevel')).default(ts.neverType),
         )
-        .addGenericParameter(
-          ts
-            .genericParameter('OmitOpts')
-            .extends(ts.namedType('Prisma.PrismaClientOptions').subKey('omit'))
-            .default(ts.namedType('Prisma.PrismaClientOptions').subKey('omit')),
-        )
-        .addGenericParameter(
-          ts
-            .genericParameter('ExtArgs')
-            .extends(ts.namedType('runtime.Types.Extensions.InternalArgs'))
-            .default(ts.namedType('runtime.Types.Extensions.DefaultArgs')),
-        ),
+
+        if (context.isTypingSupportForHeavyFeaturesEnabled()) {
+          prismaClient.type.addGenericArgument(ts.namedType('OmitOpts'))
+          prismaClient.type.addGenericArgument(ts.namedType('ExtArgs'))
+          prismaClient.addGenericParameter(
+            ts
+              .genericParameter('OmitOpts')
+              .extends(ts.namedType('Prisma.PrismaClientOptions').subKey('omit'))
+              .default(ts.namedType('Prisma.PrismaClientOptions').subKey('omit')),
+          )
+          prismaClient.addGenericParameter(
+            ts
+              .genericParameter('ExtArgs')
+              .extends(ts.namedType('runtime.Types.Extensions.InternalArgs'))
+              .default(ts.namedType('runtime.Types.Extensions.DefaultArgs')),
+          )
+        }
+
+        return prismaClient
+      })(),
     ),
   ].map((e) => ts.stringify(e))
 

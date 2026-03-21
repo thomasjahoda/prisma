@@ -127,7 +127,7 @@ async function runGenerate(dir: string, cwd: string) {
   // using `pnpm dev` instead of `pnpm build` in the workspace, which skips type
   // bundling and re-exports the types in `.d.ts` files from the raw TypeScript sources.
   try {
-    if (dir.endsWith('-js-simplified')) {
+    if (usesSimplifiedTypingSupport(dir)) {
       process.env.PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES = 'true'
     } else {
       delete process.env.PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES
@@ -145,6 +145,10 @@ async function runGenerate(dir: string, cwd: string) {
       process.env.PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES = originalDisableHeavyTypingSupport
     }
   }
+}
+
+function usesSimplifiedTypingSupport(dir: string) {
+  return dir.endsWith('-js-simplified') || dir.endsWith('-ts-simplified')
 }
 
 async function runBenchmark({

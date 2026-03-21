@@ -3,7 +3,7 @@ import { assertNever } from '@prisma/internals'
 import * as ts from '@prisma/ts-builders'
 
 import {
-  extArgsParam,
+  addExtArgsArgumentIfNeeded,
   getAggregateName,
   getCountAggregateOutputName,
   getFieldRefsTypeName,
@@ -16,7 +16,7 @@ import { getModelActions } from './utils/getModelActions'
 import * as tsx from './utils/type-builders'
 
 export function clientTypeMapDefinition(context: GenerateContext) {
-  const typeMap = `${ts.stringify(clientTypeMapModelsDefinition(context))} & ${clientTypeMapOthersDefinition(context)}`
+  const typeMap = clientTypeMapContent(context)
 
   return `
 export interface TypeMapCb<GlobalOmitOptions = {}> extends runtime.Types.Utils.Fn<{extArgs: runtime.Types.Extensions.InternalArgs }, runtime.Types.Utils.Record<string, any>> {
@@ -24,6 +24,40 @@ export interface TypeMapCb<GlobalOmitOptions = {}> extends runtime.Types.Utils.F
 }
 
 export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> = ${typeMap}`
+}
+
+export function clientTypeMapContent(context: GenerateContext) {
+  return `${ts.stringify(clientTypeMapModelsDefinition(context))} & ${clientTypeMapOthersDefinition(context)}`
+}
+
+export function clientExtensionsDefinitions(context: GenerateContext) {
+  if (!context.isTypingSupportForHeavyFeaturesEnabled()) {
+    return `
+// Removed model operations from TypeMap due to disableTypingSupportForHeavyFeatures. Note that this type is currently unused by the client itself.
+export type TypeMap = ${clientTypeMapContent(context)};
+
+// disabled typing for extensions due to disableTypingSupportForHeavyFeatures
+// type TypeMapCb = never;
+export const defineExtension: unknown = undefined as unknown;
+`
+  }
+
+  const define = ts.moduleExport(
+    ts.constDeclaration('defineExtension').setValue(
+      ts
+        .namedValue('runtime.Extensions.defineExtension')
+        .as(ts.namedType('unknown'))
+        .as(
+          ts
+            .namedType('runtime.Types.Extensions.ExtendsHook')
+            .addGenericArgument(ts.stringLiteral('define'))
+            .addGenericArgument(ts.namedType('TypeMapCb'))
+            .addGenericArgument(ts.namedType('runtime.Types.Extensions.DefaultArgs')),
+        ),
+    ),
+  )
+
+  return [clientTypeMapDefinition(context), ts.stringify(define)].join('\n')
 }
 
 function clientTypeMapModelsDefinition(context: GenerateContext) {
@@ -48,22 +82,22 @@ function clientTypeMapModelsDefinition(context: GenerateContext) {
   model.addMultiple(
     modelNames.map((modelName) => {
       const entry = ts.objectType()
-      entry.add(
-        ts.property('payload', ts.namedType(getPayloadName(modelName)).addGenericArgument(extArgsParam.toArgument())),
-      )
+      entry.add(ts.property('payload', addExtArgsArgumentIfNeeded(ts.namedType(getPayloadName(modelName)), context)))
       entry.add(ts.property('fields', ts.namedType(`Prisma.${getFieldRefsTypeName(modelName)}`)))
       const actions = getModelActions(context.dmmf, modelName)
-      const operations = ts.objectType()
-      operations.addMultiple(
-        actions.map((action) => {
-          const operationType = ts.objectType()
-          const argsType = `Prisma.${getModelArgName(modelName, action)}`
-          operationType.add(ts.property('args', ts.namedType(argsType).addGenericArgument(extArgsParam.toArgument())))
-          operationType.add(ts.property('result', clientTypeMapModelsResultDefinition(modelName, action)))
-          return ts.property(action, operationType)
-        }),
-      )
-      entry.add(ts.property('operations', operations))
+      if (context.isTypingSupportForHeavyFeaturesEnabled()) {
+        const operations = ts.objectType()
+        operations.addMultiple(
+          actions.map((action) => {
+            const operationType = ts.objectType()
+            const argsType = `Prisma.${getModelArgName(modelName, action)}`
+            operationType.add(ts.property('args', addExtArgsArgumentIfNeeded(ts.namedType(argsType), context)))
+            operationType.add(ts.property('result', clientTypeMapModelsResultDefinition(modelName, action)))
+            return ts.property(action, operationType)
+          }),
+        )
+        entry.add(ts.property('operations', operations))
+      }
       return ts.property(modelName, entry)
     }),
   )

@@ -77,7 +77,7 @@ export async function getConfig(options: GetConfigOptions): Promise<ConfigMetaFo
         'Disabling typing support for heavy features due to PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES',
       )
       for (const generator of config.generators) {
-        if (parseEnvValue(generator.provider) === 'prisma-client-js') {
+        if (['prisma-client', 'prisma-client-js', 'prisma-client-ts'].includes(parseEnvValue(generator.provider))) {
           generator.clientTypingSimplifications = {
             disableTypingSupportForHeavyFeatures: true,
           }

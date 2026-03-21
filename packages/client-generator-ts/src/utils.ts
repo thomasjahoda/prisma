@@ -199,3 +199,20 @@ export const extArgsParam = ts
   .genericParameter('ExtArgs')
   .extends(ts.namedType('runtime.Types.Extensions.InternalArgs'))
   .default(ts.namedType('runtime.Types.Extensions.DefaultArgs'))
+
+export function addExtArgsParameterIfNeeded<Type extends ts.TypeDeclaration | ts.InterfaceDeclaration>(
+  type: Type,
+  context: GenerateContext,
+): Type {
+  if (context.isTypingSupportForHeavyFeaturesEnabled()) {
+    ;(type as ts.TypeDeclaration | ts.InterfaceDeclaration).addGenericParameter(extArgsParam)
+  }
+  return type
+}
+
+export function addExtArgsArgumentIfNeeded<Type extends ts.NamedType>(type: Type, context: GenerateContext): Type {
+  if (context.isTypingSupportForHeavyFeaturesEnabled()) {
+    return type.addGenericArgument(extArgsParam.toArgument())
+  }
+  return type
+}

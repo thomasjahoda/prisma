@@ -142,6 +142,39 @@ describe('generator', () => {
     generator.stop()
   })
 
+  test('simplified typings generation', async () => {
+    const generator = await getGenerator({
+      schemaPath: path.join(__dirname, 'schema.prisma'),
+      printDownloadProgress: false,
+      skipDownload: true,
+      registry,
+    })
+
+    generator.options!.generator.clientTypingSimplifications = {
+      disableTypingSupportForHeavyFeatures: true,
+    }
+
+    await generator.generate()
+
+    const clientDir = path.join(__dirname, 'generated')
+    const clientFile = fs.readFileSync(path.join(clientDir, 'client.ts'), 'utf8')
+    const prismaNamespaceFile = fs.readFileSync(path.join(clientDir, 'internal/prismaNamespace.ts'), 'utf8')
+    const classFile = fs.readFileSync(path.join(clientDir, 'internal/class.ts'), 'utf8')
+    const modelFile = fs.readFileSync(path.join(clientDir, 'models/User.ts'), 'utf8')
+
+    expect(clientFile).not.toContain('ExtArgs extends runtime.Types.Extensions.InternalArgs')
+    expect(clientFile).not.toContain('OmitOpts extends Prisma.PrismaClientOptions')
+    expect(classFile).toContain('$extends: unknown;')
+    expect(classFile).toContain('disableTypingSupportForHeavyFeatures')
+    expect(prismaNamespaceFile).toContain('export const defineExtension: unknown = undefined as unknown;')
+    expect(prismaNamespaceFile).not.toContain("property('omit'")
+    expect(prismaNamespaceFile).not.toContain('omit: {')
+    expect(modelFile).toContain('runtime.Types.ResultSimplified.GetFindResult')
+    expect(modelFile).toContain('export type UserModel = {')
+
+    generator.stop()
+  })
+
   test('denylist from engine validation', async () => {
     expect.assertions(1)
     await expect(async () => {

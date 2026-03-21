@@ -129,4 +129,43 @@ describe('getConfig', () => {
       }""
     `)
   })
+
+  test.each(['prisma-client', 'prisma-client-js', 'prisma-client-ts'])(
+    'adds typing simplifications for %s when the env hack is enabled',
+    async (provider) => {
+      const originalDisableHeavyTypingSupport =
+        process.env.PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES
+
+      process.env.PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES = 'true'
+
+      try {
+        const config = await getConfig({
+          datamodel: `
+          datasource db {
+            provider = "sqlite"
+          }
+
+          generator client {
+            provider = "${provider}"
+          }
+
+          model A {
+            id Int @id
+          }`,
+        })
+
+        expect(config.generators).toHaveLength(1)
+        expect(config.generators[0].clientTypingSimplifications).toEqual({
+          disableTypingSupportForHeavyFeatures: true,
+        })
+      } finally {
+        if (originalDisableHeavyTypingSupport === undefined) {
+          delete process.env.PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES
+        } else {
+          process.env.PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES =
+            originalDisableHeavyTypingSupport
+        }
+      }
+    },
+  )
 })

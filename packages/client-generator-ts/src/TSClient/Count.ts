@@ -3,7 +3,7 @@ import * as DMMF from '@prisma/dmmf'
 import * as ts from '@prisma/ts-builders'
 import indent from 'indent-string'
 
-import { getFieldArgName, getSelectName } from '../utils'
+import { addExtArgsArgumentIfNeeded, getFieldArgName, getSelectName } from '../utils'
 import { ArgsTypeBuilder } from './Args'
 import { TAB_SIZE } from './constants'
 import { GenerateContext } from './GenerateContext'
@@ -46,15 +46,15 @@ export class Count {
 
 ${ts.stringify(outputType)}
 
-export type ${getSelectName(
-      name,
-    )}<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+export type ${getSelectName(name)}${this.context.isTypingSupportForHeavyFeaturesEnabled() ? '<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs>' : ''} = {
 ${indent(
   type.fields
     .map((field) => {
       const types = ['boolean']
       if (field.outputType.location === 'outputObjectTypes') {
-        types.push(getFieldArgName(field, this.type.name))
+        types.push(
+          ts.stringify(addExtArgsArgumentIfNeeded(ts.namedType(getFieldArgName(field, this.type.name)), this.context)),
+        )
       }
 
       // TODO: what should happen if both args and output types are present?

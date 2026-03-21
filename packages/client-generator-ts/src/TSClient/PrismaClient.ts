@@ -9,7 +9,13 @@ import { GenerateContext } from './GenerateContext'
 import { TSClientOptions } from './TSClient'
 import * as tsx from './utils/type-builders'
 
-function extendsPropertyDefinition() {
+function extendsPropertyDefinition(context: GenerateContext) {
+  if (!context.isTypingSupportForHeavyFeaturesEnabled()) {
+    return `
+  /** disabled typing for extensions due to disableTypingSupportForHeavyFeatures */
+  $extends: unknown;`
+  }
+
   const extendsDefinition = ts
     .namedType('runtime.Types.Extensions.ExtendsHook')
     .addGenericArgument(ts.stringLiteral('extends'))
@@ -260,6 +266,7 @@ export class PrismaClientClass {
 
   public toTS(): string {
     const { dmmf } = this.context
+    const typingSupportForHeavyFeaturesEnabled = this.context.isTypingSupportForHeavyFeaturesEnabled()
 
     return `\
 export type LogOptions<ClientOptions extends Prisma.PrismaClientOptions> =
@@ -269,19 +276,27 @@ export interface PrismaClientConstructor {
   ${indent(this.jsDoc, TAB_SIZE)}
   new <
     Options extends Prisma.PrismaClientOptions = Prisma.PrismaClientOptions,
-    LogOpts extends LogOptions<Options> = LogOptions<Options>,
+    LogOpts extends LogOptions<Options> = LogOptions<Options>${
+      typingSupportForHeavyFeaturesEnabled
+        ? `,
     OmitOpts extends Prisma.PrismaClientOptions['omit'] = Options extends { omit: infer U } ? U : Prisma.PrismaClientOptions['omit'],
-    ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs
-  >(options: Prisma.Subset<Options, Prisma.PrismaClientOptions> ): PrismaClient<LogOpts, OmitOpts, ExtArgs>
+    ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs`
+        : ''
+    }
+  >(options: Prisma.Subset<Options, Prisma.PrismaClientOptions> ): PrismaClient<LogOpts${typingSupportForHeavyFeaturesEnabled ? ', OmitOpts, ExtArgs' : ''}>
 }
 
 ${this.jsDoc}
 export interface PrismaClient<
-  in LogOpts extends Prisma.LogLevel = never,
+  in LogOpts extends Prisma.LogLevel = never${
+    typingSupportForHeavyFeaturesEnabled
+      ? `,
   in out OmitOpts extends Prisma.PrismaClientOptions['omit'] = undefined,
-  in out ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs
+  in out ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs`
+      : ''
+  }
 > {
-  [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['other'] }
+${typingSupportForHeavyFeaturesEnabled ? indent(`[K: symbol]: { types: Prisma.TypeMap<ExtArgs>['other'] }`, TAB_SIZE) : indent("// removed `[K: symbol]: { types: Prisma.TypeMap<ExtArgs>['other'] }` due to disableTypingSupportForHeavyFeatures", TAB_SIZE)}
 
   $on<V extends LogOpts>(eventType: V, callback: (event: V extends 'query' ? Prisma.QueryEvent : Prisma.LogEvent) => void): PrismaClient;
 
@@ -302,7 +317,7 @@ ${[
   batchingTransactionDefinition(this.context),
   interactiveTransactionDefinition(this.context),
   runCommandRawDefinition(this.context),
-  extendsPropertyDefinition(),
+  extendsPropertyDefinition(this.context),
 ]
   .filter((d) => d !== null)
   .join('\n')
@@ -316,7 +331,7 @@ ${[
           if (methodName === 'constructor') {
             methodName = '["constructor"]'
           }
-          const generics = ['ExtArgs', '{ omit: OmitOpts }']
+          const generics = typingSupportForHeavyFeaturesEnabled ? ['ExtArgs', '{ omit: OmitOpts }'] : []
           return `\
 /**
  * \`prisma.${methodName}\`: Exposes CRUD operations for the **${m.model}** model.
@@ -326,7 +341,7 @@ ${[
   * const ${uncapitalize(m.plural)} = await prisma.${methodName}.findMany()
   * \`\`\`
   */
-get ${methodName}(): Prisma.${m.model}Delegate<${generics.join(', ')}>;`
+get ${methodName}(): Prisma.${m.model}Delegate${generics.length === 0 ? '' : `<${generics.join(', ')}>`};`
         })
         .join('\n\n'),
       2,

@@ -52,4 +52,12 @@ export class GenerateContext implements GenerateContextOptions {
   isSqlProvider(): boolean {
     return this.provider !== 'mongodb'
   }
+
+  isTypingSupportForHeavyFeaturesEnabled(): boolean {
+    return isTypingSupportForHeavyFeaturesEnabled(this.generator)
+  }
+}
+
+export function isTypingSupportForHeavyFeaturesEnabled(generator: GeneratorConfig | undefined): boolean {
+  return generator?.clientTypingSimplifications?.disableTypingSupportForHeavyFeatures !== true
 }

@@ -1,7 +1,15 @@
 import * as DMMF from '@prisma/dmmf'
 import * as ts from '@prisma/ts-builders'
 
-import { extArgsParam, getIncludeName, getModelArgName, getOmitName, getSelectName } from '../utils'
+import {
+  addExtArgsArgumentIfNeeded,
+  addExtArgsParameterIfNeeded,
+  extArgsParam,
+  getIncludeName,
+  getModelArgName,
+  getOmitName,
+  getSelectName,
+} from '../utils'
 import { GenerateContext } from './GenerateContext'
 import { getArgFieldJSDoc } from './helpers'
 import { buildInputField } from './Input'
@@ -16,7 +24,7 @@ export class ArgsTypeBuilder {
   ) {
     this.moduleExport = ts
       .moduleExport(
-        ts.typeDeclaration(getModelArgName(type.name, action), ts.objectType()).addGenericParameter(extArgsParam),
+        addExtArgsParameterIfNeeded(ts.typeDeclaration(getModelArgName(type.name, action), ts.objectType()), context),
       )
       .setDocComment(ts.docComment(`${type.name} ${action ?? 'without action'}`))
   }
@@ -44,7 +52,7 @@ export class ArgsTypeBuilder {
         .property(
           'select',
           ts.unionType([
-            ts.namedType(`Prisma.${selectTypeName}`).addGenericArgument(extArgsParam.toArgument()),
+            addExtArgsArgumentIfNeeded(ts.namedType(`Prisma.${selectTypeName}`), this.context),
             ts.nullType,
           ]),
         )
@@ -66,7 +74,7 @@ export class ArgsTypeBuilder {
         .property(
           'include',
           ts.unionType([
-            ts.namedType(`Prisma.${includeTypeName}`).addGenericArgument(extArgsParam.toArgument()),
+            addExtArgsArgumentIfNeeded(ts.namedType(`Prisma.${includeTypeName}`), this.context),
             ts.nullType,
           ]),
         )
@@ -78,6 +86,9 @@ export class ArgsTypeBuilder {
   }
 
   addOmitArg(): this {
+    if (!this.context.isTypingSupportForHeavyFeaturesEnabled()) {
+      return this
+    }
     this.addProperty(
       ts
         .property(

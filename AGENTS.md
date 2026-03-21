@@ -16,6 +16,7 @@
     - Query interpreter/data mapper: `packages/client-engine-runtime/bench/interpreter.bench.ts`
     - Client generation: `packages/client/src/__tests__/benchmarks/huge-schema/`, `packages/client/src/__tests__/benchmarks/lots-of-relations/`
   - Type benchmarks live in `packages/type-benchmark-tests`; local comparison directories suffixed with `-js-simplified` use `provider = "prisma-client-js"` and are generated with `PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES=true` by the local harness in `packages/type-benchmark-tests/test.ts`.
+  - Additional local comparison directories suffixed with `-ts-simplified` use `provider = "prisma-client-ts"` and the same env hack to benchmark the simplified `client-generator-ts` output.
   - The type benchmark harness auto-discovers every `*.bench.ts` file in each schema directory and runs them directly, so adding a new standalone benchmark file is enough to extend coverage.
   - The harness also auto-discovers `*.type-check-benchmark.ts` files and runs them through `tsc --extendedDiagnostics` via `typeCheckingBenchmarkExecution.ts`; each file stores its reference total as `// type-check-benchmark-instantiations: <count>`.
   - For `prisma-client-js` custom outputs, simplified types show up in `generated/index.d.ts`; `generated/client.ts` remains a compatibility entrypoint, so benchmark fixtures that want to measure simplified typings need to import `./generated` instead of `./generated/client`.
@@ -87,6 +88,7 @@
   - Inline snapshots can be sensitive to formatting; prefer concise expectations unless the exact message matters.
 
 - **Environment loading**: Prisma 7 removes automatic `.env` loading.
+- `PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES=true` now annotates generator configs for `prisma-client`, `prisma-client-ts`, and `prisma-client-js` in `packages/internals/src/engine-commands/getConfig.ts`.
 
 - **Driver adapter error handling**:
   - Database errors are mapped in each adapter's `errors.ts` (e.g., `packages/adapter-pg/src/errors.ts`).
