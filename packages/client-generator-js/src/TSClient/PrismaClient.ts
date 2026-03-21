@@ -452,7 +452,7 @@ export class PrismaClientClass implements Generable {
     return `${this.jsDoc}
 export class PrismaClient<
   ClientOptions extends Prisma.PrismaClientOptions = Prisma.PrismaClientOptions,
-  U = 'log' extends keyof ClientOptions ? ClientOptions['log'] extends Array<Prisma.LogLevel | Prisma.LogDefinition> ? Prisma.GetEvents<ClientOptions['log']> : never : never${
+  const U = 'log' extends keyof ClientOptions ? ClientOptions['log'] extends Array<Prisma.LogLevel | Prisma.LogDefinition> ? Prisma.GetEvents<ClientOptions['log']> : never : never${
     this.context.isTypingSupportForHeavyFeaturesEnabled()
       ? ',\n  ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs'
       : '\n  // Omitting ExtArgs generic parameter due to disableTypingSupportForHeavyFeatures'

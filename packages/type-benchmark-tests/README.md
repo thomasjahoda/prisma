@@ -17,6 +17,7 @@ This test suite shall ensure that we are not running into regressions with our t
 ## Structure
 
 - Each folder in this directory contains a different schema.
+- Folders suffixed with `-js-simplified` use `provider = "prisma-client-js"` and generate with `PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES=true`.
 - Each schema can be tested with multiple `*.bench.ts` files.
 - Each `*.bench.ts` file can contain multiple attest benchmarks and a dedicated baseline.
 - The generated prisma client for each schema can be found in the `generated` subfolder after a test run.

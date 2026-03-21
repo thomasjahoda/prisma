@@ -111,10 +111,30 @@ function getBenchmarkFiles(dir: string) {
 
 async function runGenerate(dir: string, cwd: string) {
   console.log(`Running generate command in ${dir}...`)
+  const originalDisableHeavyTypingSupport =
+    process.env.PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES
   // tsx sometimes crashes with stack overflow with the default stack size when
   // using `pnpm dev` instead of `pnpm build` in the workspace, which skips type
   // bundling and re-exports the types in `.d.ts` files from the raw TypeScript sources.
-  await execa('tsx', ['--stack-size=2048', '../../cli/src/bin.ts', 'generate', '--no-hints'], { cwd, stdio: 'inherit' })
+  try {
+    if (dir.endsWith('-js-simplified')) {
+      process.env.PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES = 'true'
+    } else {
+      delete process.env.PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES
+    }
+
+    await execa('tsx', ['--stack-size=2048', '../../cli/src/bin.ts', 'generate', '--no-hints'], {
+      cwd,
+      stdio: 'inherit',
+      env: process.env,
+    })
+  } finally {
+    if (originalDisableHeavyTypingSupport === undefined) {
+      delete process.env.PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES
+    } else {
+      process.env.PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES = originalDisableHeavyTypingSupport
+    }
+  }
 }
 
 async function runBenchmark({

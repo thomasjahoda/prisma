@@ -647,7 +647,7 @@ export const ABeautifulEnum: typeof $Enums.ABeautifulEnum
  */
 export class PrismaClient<
   ClientOptions extends Prisma.PrismaClientOptions = Prisma.PrismaClientOptions,
-  U = 'log' extends keyof ClientOptions ? ClientOptions['log'] extends Array<Prisma.LogLevel | Prisma.LogDefinition> ? Prisma.GetEvents<ClientOptions['log']> : never : never
+  const U = 'log' extends keyof ClientOptions ? ClientOptions['log'] extends Array<Prisma.LogLevel | Prisma.LogDefinition> ? Prisma.GetEvents<ClientOptions['log']> : never : never
   // Omitting ExtArgs generic parameter due to disableTypingSupportForHeavyFeatures
 > {
   // removed \`[K: symbol]: { types: Prisma.TypeMap<ExtArgs>['other'] }\` due to disableTypingSupportForHeavyFeatures
