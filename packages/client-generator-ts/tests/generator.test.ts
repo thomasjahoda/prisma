@@ -169,8 +169,16 @@ describe('generator', () => {
     expect(prismaNamespaceFile).toContain('export const defineExtension: unknown = undefined as unknown;')
     expect(prismaNamespaceFile).not.toContain("property('omit'")
     expect(prismaNamespaceFile).not.toContain('omit: {')
-    expect(modelFile).toContain('runtime.Types.ResultSimplified.GetFindResult')
     expect(modelFile).toContain('export type UserModel = {')
+    expect(modelFile).toContain(
+      'export type UserGetPayload<S extends boolean | null | undefined | UserDefaultArgs> = UserModel',
+    )
+    expect(modelFile).toContain('findUnique(args: UserFindUniqueArgs)')
+    expect(modelFile).not.toContain('runtime.Types.ResultSimplified.GetFindResult')
+    expect(modelFile).not.toContain('Prisma.XOR<')
+    expect(modelFile).not.toContain('Prisma.AtLeast<')
+    expect(modelFile).not.toContain('DependenciesValidator')
+    expect(modelFile).not.toContain('If you provide "take", you also need to provide "orderBy"')
 
     generator.stop()
   })

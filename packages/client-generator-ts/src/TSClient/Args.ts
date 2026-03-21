@@ -35,7 +35,13 @@ export class ArgsTypeBuilder {
 
   addSchemaArgs(args: readonly DMMF.SchemaArg[]): this {
     for (const arg of args) {
-      const inputField = buildInputField(arg, this.context)
+      const inputField = this.context.isTypingSupportForHeavyFeaturesEnabled()
+        ? buildInputField(arg, this.context)
+        : ts.property(arg.name, ts.namedType('unknown'))
+
+      if (!this.context.isTypingSupportForHeavyFeaturesEnabled() && !arg.isRequired) {
+        inputField.optional()
+      }
 
       const docComment = getArgFieldJSDoc(this.type, this.action, arg)
       if (docComment) {

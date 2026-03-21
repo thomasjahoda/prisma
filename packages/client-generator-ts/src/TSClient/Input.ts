@@ -110,6 +110,10 @@ function buildAllFieldTypes(
 
   const tsOtherTypes = otherTypes.map((type) => buildSingleFieldType(type, context.genericArgsInfo, source))
 
+  if (!context.isTypingSupportForHeavyFeaturesEnabled()) {
+    return unionTypes([...tsInputObjectTypes, ...tsOtherTypes])
+  }
+
   if (tsOtherTypes.length === 0) {
     return xorTypes(tsInputObjectTypes)
   }
@@ -123,6 +127,14 @@ function buildAllFieldTypes(
 
 function xorTypes(types: ts.TypeBuilder[]) {
   return types.reduce((prev, curr) => ts.namedType('Prisma.XOR').addGenericArgument(prev).addGenericArgument(curr))
+}
+
+function unionTypes(types: ts.TypeBuilder[]) {
+  if (types.length === 1) {
+    return types[0]
+  }
+
+  return ts.unionType(types)
 }
 
 export class InputType {
@@ -153,8 +165,14 @@ ${indent(
 
     const needsGeneric = this.context.genericArgsInfo.typeNeedsGenericModelArg(this.type)
     const typeName = needsGeneric ? `${this.type.name}<$PrismaModel = never>` : this.type.name
+    const wrappedBody = this.context.isTypingSupportForHeavyFeaturesEnabled() ? wrapWithAtLeast(body, type) : body
 
     if (type.name.includes('Json') && type.name.includes('Filter')) {
+      if (!this.context.isTypingSupportForHeavyFeaturesEnabled()) {
+        return `
+export type ${typeName} = ${body}`
+      }
+
       const innerName = needsGeneric ? `${this.type.name}Base<$PrismaModel>` : `${this.type.name}Base`
       // This generates types for JsonFilter to prevent the usage of 'path' without another parameter
       const baseName = `Required<${innerName}>`
@@ -169,7 +187,7 @@ export type ${typeName} =
 export type ${this.type.name}Base${needsGeneric ? '<$PrismaModel = never>' : ''} = ${wrapWithAtLeast(body, type)}`
     } else {
       return `
-export type ${typeName} = ${wrapWithAtLeast(body, type)}`
+export type ${typeName} = ${wrappedBody}`
     }
   }
 }
