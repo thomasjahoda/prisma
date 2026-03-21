@@ -1,7 +1,6 @@
 import path from 'node:path'
 
 import type * as DMMF from '@prisma/dmmf'
-import { BuiltInProvider } from '@prisma/internals'
 
 import { TSClient } from '../../TSClient/TSClient'
 
@@ -25,9 +24,9 @@ export function dmmfToTypes(dmmf: DMMF.Document) {
     generator: {
       binaryTargets: [],
       config: {},
-      name: BuiltInProvider.PrismaClientJs,
+      name: 'prisma-client-js',
       output: null,
-      provider: { value: BuiltInProvider.PrismaClientJs, fromEnvVar: null },
+      provider: { value: 'prisma-client-js', fromEnvVar: null },
       previewFeatures: [],
       isCustomOutput: false,
       sourceFilePath: 'schema.prisma',

@@ -4,7 +4,6 @@ import { enginesVersion } from '@prisma/engines'
 import { SqlQueryOutput } from '@prisma/generator'
 import {
   arg,
-  BuiltInProvider,
   Command,
   createSchemaPathInput,
   format,
@@ -180,7 +179,7 @@ ${bold('Examples')}
       } else {
         // Only used for CLI output, ie Go client doesn't want JS example output
         const jsClient = generators.find(
-          (g) => g.options && parseEnvValue(g.options.generator.provider) === BuiltInProvider.PrismaClientJs,
+          (g) => g.options && parseEnvValue(g.options.generator.provider) === 'prisma-client-js',
         )
 
         clientGeneratorVersion = jsClient?.manifest?.version ?? null
@@ -231,7 +230,7 @@ Please run \`prisma generate\` manually.`
     if (!watchMode) {
       const prismaClientJSGenerator = generators?.find(
         ({ options }) =>
-          options?.generator.provider && parseEnvValue(options?.generator.provider) === BuiltInProvider.PrismaClientJs,
+          options?.generator.provider && parseEnvValue(options?.generator.provider) === 'prisma-client-js',
       )
 
       let hint = ''
