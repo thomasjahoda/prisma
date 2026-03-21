@@ -1,1 +1,6 @@
 generated
+# Local-only benchmark suites. Keep them ignored in git, but treat them like the
+# tracked benchmark directories for local AI tasks and keep matching benchmark
+# files in sync when making changes to the type benchmark suite.
+/learningsuite
+/learningsuite-js-simplified

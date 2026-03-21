@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url'
 
 import { execa } from 'execa'
 
+import { executeTypeCheckingBenchmarkForEntrypointFile } from './typeCheckingBenchmarkExecution.js'
+
 // @ts-ignore
 const parentDir = dirname(fileURLToPath(import.meta.url))
 
@@ -44,7 +46,11 @@ async function main() {
           })
           continue
         }
-        results.push(await runBenchmark({ benchFile, cwd, updateSnapshots, dir }))
+        const result = await runBenchmark({ benchFile, cwd, updateSnapshots, dir })
+        if (!result.success) {
+          hasAnyFailure = true
+        }
+        results.push(result)
       }
     } catch (error) {
       hasAnyFailure = true
@@ -104,9 +110,13 @@ function getTestDirectories() {
 }
 
 function getBenchmarkFiles(dir: string) {
-  return readdirSync(dir).filter((item) => {
-    return statSync(join(dir, item)).isFile() && item.endsWith('.bench.ts')
-  })
+  return readdirSync(dir)
+    .filter((item) => {
+      return (
+        statSync(join(dir, item)).isFile() && (item.endsWith('.bench.ts') || item.endsWith('.type-check-benchmark.ts'))
+      )
+    })
+    .sort()
 }
 
 async function runGenerate(dir: string, cwd: string) {
@@ -150,16 +160,25 @@ async function runBenchmark({
 }) {
   console.log(`Running ${dir}/${benchFile}...`)
   try {
-    await execa('tsx', [benchFile], {
-      cwd,
-      stdio: 'inherit',
-      env: { ATTEST_updateSnapshots: updateSnapshots ? 'true' : 'false' },
-    })
+    if (benchFile.endsWith('.type-check-benchmark.ts')) {
+      await executeTypeCheckingBenchmarkForEntrypointFile({
+        cwd,
+        entrypointFile: benchFile,
+        updateSnapshots,
+      })
+    } else {
+      await execa('tsx', [benchFile], {
+        cwd,
+        stdio: 'inherit',
+        env: { ATTEST_updateSnapshots: updateSnapshots ? 'true' : 'false' },
+      })
+    }
     return {
       directory: `${dir}/${benchFile}`,
       success: true,
     }
-  } catch {
+  } catch (error) {
+    console.error(error)
     return {
       directory: `${dir}/${benchFile}`,
       success: false,
