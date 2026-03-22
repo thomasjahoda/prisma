@@ -181,7 +181,7 @@ export class Model {
     const groupByArgsName = getGroupByArgsName(model.name)
 
     const groupByPayload = this.context.isTypingSupportForHeavyFeaturesEnabled()
-      ? `type ${getGroupByPayloadName(model.name)}<T extends ${groupByArgsName}> = Prisma.PrismaPromise<
+      ? `export type ${getGroupByPayloadName(model.name)}<T extends ${groupByArgsName}> = Prisma.PrismaPromise<
   Array<
     Prisma.PickEnumerable<${groupByType.name}, T['by']> &
       {
@@ -193,7 +193,7 @@ export class Model {
       }
     >
   >`
-      : `type ${getGroupByPayloadName(model.name)}<T extends ${groupByArgsName}> = Prisma.PrismaPromise<
+      : `export type ${getGroupByPayloadName(model.name)}<T extends ${groupByArgsName}> = Prisma.PrismaPromise<
   runtime.Types.ResultSimplified.GetGroupByResult<${getPayloadName(model.name)}, T>
 >`
 
