@@ -60,7 +60,7 @@ bench('log config applied', () => {
 
   passClientAround(client)
   passToAnyClientAround(client)
-}).types([697, 'instantiations'])
+}).types([86706, 'instantiations'])
 
 bench('errorFormat applied', () => {
   const client = new PrismaClientConstructor({
@@ -73,7 +73,7 @@ bench('errorFormat applied', () => {
   }
 
   return passClientAround(client)
-}).types([517, 'instantiations'])
+}).types([86484, 'instantiations'])
 
 bench('adapter applied', () => {
   const client = new PrismaClientConstructor({
@@ -89,7 +89,7 @@ bench('adapter applied', () => {
   }
 
   return passClientAround(client)
-}).types([724, 'instantiations'])
+}).types([86500, 'instantiations'])
 
 bench('global omit applied', async () => {
   const client = new PrismaClientConstructor({
@@ -140,7 +140,7 @@ bench('passed around client then extend', () => {
 
   return passClientAround(client)
   // Apparently passing the client around and then extending it is way slower.
-}).types([3042, 'instantiations'])
+}).types([88630, 'instantiations'])
 
 bench('fully extended', () => {
   const client = new PrismaClientConstructor({

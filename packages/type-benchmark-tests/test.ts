@@ -24,9 +24,17 @@ async function main() {
   }[] = []
 
   let hasAnyFailure = false
+  let matchedBenchmarkCount = 0
 
   for (const dir of directories) {
     const cwd = join(parentDir, dir)
+    const benchFiles = getMatchingBenchmarkFiles(dir, testFilter)
+
+    if (benchFiles.length === 0) {
+      continue
+    }
+
+    matchedBenchmarkCount += benchFiles.length
     console.log(`\nProcessing directory: ${dir}`)
 
     try {
@@ -35,17 +43,7 @@ async function main() {
       }
       if (shouldOnlyGenerate) continue
 
-      const benchFiles = getBenchmarkFiles(dir)
       for (const benchFile of benchFiles) {
-        if (testFilter && !`${dir}/${benchFile}`.includes(testFilter)) {
-          console.log(`Skipping ${benchFile} - does not match filter: ${testFilter}`)
-          results.push({
-            directory: `${dir}/${benchFile}`,
-            success: false,
-            skipped: true,
-          })
-          continue
-        }
         const result = await runBenchmark({ benchFile, cwd, updateSnapshots, dir })
         if (!result.success) {
           hasAnyFailure = true
@@ -59,6 +57,11 @@ async function main() {
         success: false,
       })
     }
+  }
+
+  if (testFilter && matchedBenchmarkCount === 0) {
+    console.error(`No benchmark files matched filter: ${testFilter}`)
+    process.exit(1)
   }
 
   printResults(results, updateSnapshots)
@@ -117,6 +120,20 @@ function getBenchmarkFiles(dir: string) {
       )
     })
     .sort()
+}
+
+function getMatchingBenchmarkFiles(dir: string, testFilter?: string) {
+  const benchFiles = getBenchmarkFiles(dir)
+
+  if (!testFilter) {
+    return benchFiles
+  }
+
+  return benchFiles.filter((benchFile) => matchesTestFilter(dir, benchFile, testFilter))
+}
+
+function matchesTestFilter(dir: string, benchFile: string, testFilter: string) {
+  return `${dir}/${benchFile}`.includes(testFilter)
 }
 
 async function runGenerate(dir: string, cwd: string) {

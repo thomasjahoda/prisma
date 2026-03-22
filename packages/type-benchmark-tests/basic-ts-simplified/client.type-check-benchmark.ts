@@ -8,4 +8,4 @@ const client: PrismaClient<'info'> = undefined as any
 client.user.findUnique({
   where: { id: 'some_user_id' },
 })
-// type-check-benchmark-instantiations: 171451
+// type-check-benchmark-instantiations: 171764
