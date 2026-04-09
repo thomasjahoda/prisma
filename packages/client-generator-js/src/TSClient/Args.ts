@@ -1,7 +1,16 @@
 import * as DMMF from '@prisma/dmmf'
 import * as ts from '@prisma/ts-builders'
 
-import { extArgsParam, getIncludeName, getModelArgName, getOmitName, getSelectName } from '../utils'
+import {
+  addExtArgsArgumentIfNeeded,
+  addExtArgsParameterIfNeeded,
+  extArgsParam,
+  getIncludeName,
+  getLegacyModelArgName,
+  getModelArgName,
+  getOmitName,
+  getSelectName,
+} from '../utils'
 import { GenerateContext } from './GenerateContext'
 import { getArgFieldJSDoc } from './helpers'
 import { buildInputField } from './Input'
@@ -18,7 +27,10 @@ export class ArgsTypeBuilder {
   ) {
     this.moduleExport = ts
       .moduleExport(
-        ts.typeDeclaration(getModelArgName(type.name, action), ts.objectType()).addGenericParameter(extArgsParam),
+        addExtArgsParameterIfNeeded(
+          ts.typeDeclaration(getModelArgName(type.name, action ?? 'DefaultArgs'), ts.objectType()),
+          context,
+        ),
       )
       .setDocComment(ts.docComment(`${type.name} ${action ?? 'without action'}`))
   }
@@ -45,7 +57,7 @@ export class ArgsTypeBuilder {
       ts
         .property(
           'select',
-          ts.unionType([ts.namedType(selectTypeName).addGenericArgument(extArgsParam.toArgument()), ts.nullType]),
+          ts.unionType([addExtArgsArgumentIfNeeded(ts.namedType(selectTypeName), this.context), ts.nullType]),
         )
         .optional()
         .setDocComment(ts.docComment(`Select specific fields to fetch from the ${this.type.name}`)),
@@ -64,7 +76,7 @@ export class ArgsTypeBuilder {
       ts
         .property(
           'include',
-          ts.unionType([ts.namedType(includeTypeName).addGenericArgument(extArgsParam.toArgument()), ts.nullType]),
+          ts.unionType([addExtArgsArgumentIfNeeded(ts.namedType(includeTypeName), this.context), ts.nullType]),
         )
         .optional()
         .setDocComment(ts.docComment('Choose, which related nodes to fetch as well')),
@@ -74,6 +86,9 @@ export class ArgsTypeBuilder {
   }
 
   addOmitArg(): this {
+    if (!this.context.isPreviewFeatureOn('omitApi') || !this.context.isTypingSupportForHeavyFeaturesEnabled()) {
+      return this
+    }
     this.addProperty(
       ts
         .property(
@@ -101,6 +116,13 @@ export class ArgsTypeBuilder {
   }
 
   createExport() {
+    if (!this.action && this.hasDefaultName) {
+      this.context.defaultArgsAliases.addPossibleAlias(
+        getModelArgName(this.type.name, 'DefaultArgs'),
+        getLegacyModelArgName(this.type.name),
+      )
+    }
+    this.context.defaultArgsAliases.registerArgName(this.moduleExport.declaration.name)
     return this.moduleExport
   }
 }

@@ -101,7 +101,7 @@ export function getFieldArgName(field: DMMF.SchemaField, modelName: string): str
   if (field.args.length) {
     return getModelFieldArgsName(field, modelName)
   }
-  return getModelArgName(field.outputType.type)
+  return getModelArgName(field.outputType.type, 'DefaultArgs')
 }
 
 export function getModelFieldArgsName(field: DMMF.SchemaField, modelName: string) {
@@ -110,13 +110,17 @@ export function getModelFieldArgsName(field: DMMF.SchemaField, modelName: string
   return `${modelName}$${field.name}Args`
 }
 
+export function getLegacyModelArgName(modelName: string) {
+  return `${modelName}Args`
+}
+
 // we need names for all top level args,
 // as GraphQL doesn't have the concept of unnamed args
-export function getModelArgName(modelName: string, action?: DMMF.ModelAction): string {
-  if (!action) {
+export function getModelArgName(modelName: string, actionOrSpecial: DMMF.ModelAction | 'DefaultArgs'): string {
+  if (actionOrSpecial === 'DefaultArgs') {
     return `${modelName}DefaultArgs`
   }
-  switch (action) {
+  switch (actionOrSpecial) {
     case DMMF.ModelAction.findMany:
       return `${modelName}FindManyArgs`
     case DMMF.ModelAction.findUnique:
@@ -156,7 +160,7 @@ export function getModelArgName(modelName: string, action?: DMMF.ModelAction): s
     case DMMF.ModelAction.aggregateRaw:
       return `${modelName}AggregateRawArgs`
     default:
-      assertNever(action, `Unknown action: ${action}`)
+      assertNever(actionOrSpecial, `Unknown action: ${actionOrSpecial}`)
   }
 }
 
@@ -195,3 +199,34 @@ export const extArgsParam = ts
   .genericParameter('ExtArgs')
   .extends(ts.namedType('$Extensions.InternalArgs'))
   .default(ts.namedType('$Extensions.DefaultArgs'))
+
+export function addExtArgsParameterIfNeeded<Type extends ts.TypeDeclaration | ts.InterfaceDeclaration>(
+  type: Type,
+  context: GenerateContext,
+): Type {
+  if (context.isTypingSupportForHeavyFeaturesEnabled()) {
+    ;(type as ts.TypeDeclaration | ts.InterfaceDeclaration).addGenericParameter(extArgsParam)
+  }
+  return type
+}
+
+export function addExtArgsArgumentIfNeeded<Type extends ts.NamedType>(type: Type, context: GenerateContext): Type {
+  if (context.isTypingSupportForHeavyFeaturesEnabled()) {
+    return type.addGenericArgument(extArgsParam.toArgument())
+  }
+  return type
+}
+
+export function getExtArgsGenericDeclarationStringIfNeeded(context: GenerateContext) {
+  if (context.isTypingSupportForHeavyFeaturesEnabled()) {
+    return '<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs>'
+  }
+  return ''
+}
+
+export function adaptIfHeavyTypingFeaturesEnabled<T>(value: T, context: GenerateContext, adaptFn: (value: T) => T): T {
+  if (context.isTypingSupportForHeavyFeaturesEnabled()) {
+    return adaptFn(value)
+  }
+  return value
+}

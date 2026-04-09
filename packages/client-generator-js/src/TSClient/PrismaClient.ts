@@ -6,7 +6,7 @@ import * as ts from '@prisma/ts-builders'
 import indent from 'indent-string'
 
 import {
-  extArgsParam,
+  addExtArgsArgumentIfNeeded,
   getAggregateName,
   getCountAggregateOutputName,
   getFieldRefsTypeName,
@@ -46,22 +46,24 @@ function clientTypeMapModelsDefinition(context: GenerateContext) {
   model.addMultiple(
     modelNames.map((modelName) => {
       const entry = ts.objectType()
-      entry.add(
-        ts.property('payload', ts.namedType(getPayloadName(modelName)).addGenericArgument(extArgsParam.toArgument())),
-      )
+      entry.add(ts.property('payload', addExtArgsArgumentIfNeeded(ts.namedType(getPayloadName(modelName)), context)))
+      // TODO [simplification] can I remove the whole TypeMap thing?
       entry.add(ts.property('fields', ts.namedType(`Prisma.${getFieldRefsTypeName(modelName)}`)))
       const actions = getModelActions(context.dmmf, modelName)
-      const operations = ts.objectType()
-      operations.addMultiple(
-        actions.map((action) => {
-          const operationType = ts.objectType()
-          const argsType = `Prisma.${getModelArgName(modelName, action)}`
-          operationType.add(ts.property('args', ts.namedType(argsType).addGenericArgument(extArgsParam.toArgument())))
-          operationType.add(ts.property('result', clientTypeMapModelsResultDefinition(modelName, action)))
-          return ts.property(action, operationType)
-        }),
-      )
-      entry.add(ts.property('operations', operations))
+      if (context.isTypingSupportForHeavyFeaturesEnabled()) {
+        // only necessary for extensions. Otherwise the types will be inlined
+        const operations = ts.objectType()
+        operations.addMultiple(
+          actions.map((action) => {
+            const operationType = ts.objectType()
+            const argsType = `Prisma.${getModelArgName(modelName, action)}`
+            operationType.add(ts.property('args', addExtArgsArgumentIfNeeded(ts.namedType(argsType), context)))
+            operationType.add(ts.property('result', clientTypeMapModelsResultDefinition(modelName, action)))
+            return ts.property(action, operationType)
+          }),
+        )
+        entry.add(ts.property('operations', operations))
+      }
       return ts.property(modelName, entry)
     }),
   )
@@ -73,7 +75,7 @@ function clientTypeMapModelsDefinition(context: GenerateContext) {
     .add(ts.property('model', model))
 }
 
-function clientTypeMapModelsResultDefinition(
+export function clientTypeMapModelsResultDefinition(
   modelName: string,
   action: Exclude<Operation, `$${string}`>,
 ): ts.TypeBuilder {
@@ -143,8 +145,12 @@ function clientTypeMapOthersDefinition(context: GenerateContext) {
 }`
 }
 
+function clientTypeMapContent(context: GenerateContext) {
+  return `${ts.stringify(clientTypeMapModelsDefinition(context))} & ${clientTypeMapOthersDefinition(context)}`
+}
+
 function clientTypeMapDefinition(context: GenerateContext) {
-  const typeMap = `${ts.stringify(clientTypeMapModelsDefinition(context))} & ${clientTypeMapOthersDefinition(context)}`
+  const typeMap = clientTypeMapContent(context)
 
   return `
 interface TypeMapCb<ClientOptions = {}> extends $Utils.Fn<{extArgs: $Extensions.InternalArgs }, $Utils.Record<string, any>> {
@@ -155,7 +161,20 @@ export type TypeMap<ExtArgs extends $Extensions.InternalArgs = $Extensions.Defau
 }
 
 function clientExtensionsDefinitions(context: GenerateContext) {
-  const typeMap = clientTypeMapDefinition(context)
+  if (!context.isTypingSupportForHeavyFeaturesEnabled()) {
+    const typeMapContent = clientTypeMapContent(context)
+    // TODO [simplification] remove TypeMap completely? maybe add flag to disable it, because e.g. I don't need it. However, now it won't be this big anymore anyways.
+    return `
+// Removed model operations from TypeMap due to disableTypingSupportForHeavyFeatures. Note that this type is currently unused by the client itself.
+export type TypeMap = ${typeMapContent};
+
+// disabled typing for extensions due to disableTypingSupportForHeavyFeatures
+// type TypeMapCb = never;
+export const defineExtension: unknown = undefined as unknown;
+`
+  }
+
+  const typeMapDefinition = clientTypeMapDefinition(context)
   const define = ts.moduleExport(
     ts.constDeclaration(
       'defineExtension',
@@ -167,21 +186,30 @@ function clientExtensionsDefinitions(context: GenerateContext) {
     ),
   )
 
-  return [typeMap, ts.stringify(define)].join('\n')
+  return [typeMapDefinition, ts.stringify(define)].join('\n')
 }
 
-function extendsPropertyDefinition() {
+function extendsPropertyDefinition(context: GenerateContext) {
+  if (!context.isTypingSupportForHeavyFeaturesEnabled()) {
+    return `
+  /** disabled typing for extensions due to disableTypingSupportForHeavyFeatures */
+  $extends: unknown;`
+  }
   const extendsDefinition = ts
     .namedType('$Extensions.ExtendsHook')
     .addGenericArgument(ts.stringLiteral('extends'))
     .addGenericArgument(ts.namedType('Prisma.TypeMapCb').addGenericArgument(ts.namedType('ClientOptions')))
     .addGenericArgument(ts.namedType('ExtArgs'))
-    .addGenericArgument(
-      ts
-        .namedType('$Utils.Call')
-        .addGenericArgument(ts.namedType('Prisma.TypeMapCb').addGenericArgument(ts.namedType('ClientOptions')))
-        .addGenericArgument(ts.objectType().add(ts.property('extArgs', ts.namedType('ExtArgs')))),
-    )
+  if (context.isPreviewFeatureOn('omitApi') && context.isTypingSupportForHeavyFeaturesEnabled()) {
+    extendsDefinition
+      .addGenericArgument(
+        ts
+          .namedType('$Utils.Call')
+          .addGenericArgument(ts.namedType('Prisma.TypeMapCb'))
+          .addGenericArgument(ts.objectType().add(ts.property('extArgs', ts.namedType('ExtArgs')))),
+      )
+      .addGenericArgument(ts.namedType('ClientOptions'))
+  }
   return ts.stringify(ts.property('$extends', extendsDefinition), { indentLevel: 1 })
 }
 
@@ -464,10 +492,22 @@ export class PrismaClientClass implements Generable {
     return `${this.jsDoc}
 export class PrismaClient<
   ClientOptions extends Prisma.PrismaClientOptions = Prisma.PrismaClientOptions,
-  const U = 'log' extends keyof ClientOptions ? ClientOptions['log'] extends Array<Prisma.LogLevel | Prisma.LogDefinition> ? Prisma.GetEvents<ClientOptions['log']> : never : never,
-  ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs
+  const U = 'log' extends keyof ClientOptions ? ClientOptions['log'] extends Array<Prisma.LogLevel | Prisma.LogDefinition> ? Prisma.GetEvents<ClientOptions['log']> : never : never${
+    this.context.isTypingSupportForHeavyFeaturesEnabled()
+      ? ',\n  ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs'
+      : '\n  // Omitting ExtArgs generic parameter due to disableTypingSupportForHeavyFeatures'
+  }
 > {
-  [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['other'] }
+${
+  // TODO [simplification] what is 'other'? Directly generate the properties here instead of simply removing them?
+  this.context.isTypingSupportForHeavyFeaturesEnabled()
+    ? indent(`[K: symbol]: { types: Prisma.TypeMap<ExtArgs>['other'] }`, TAB_SIZE)
+    : '' +
+      indent(
+        "// removed `[K: symbol]: { types: Prisma.TypeMap<ExtArgs>['other'] }` due to disableTypingSupportForHeavyFeatures",
+        TAB_SIZE,
+      )
+}
 
   ${indent(this.jsDoc, TAB_SIZE)}
 
@@ -493,7 +533,7 @@ ${[
   runCommandRawDefinition(this.context),
   metricDefinition(this.context),
   applyPendingMigrationsDefinition.bind(this)(),
-  extendsPropertyDefinition(),
+  extendsPropertyDefinition(this.context),
 ]
   .filter((d) => d !== null)
   .join('\n')
@@ -507,7 +547,11 @@ ${[
           if (methodName === 'constructor') {
             methodName = '["constructor"]'
           }
-          const generics = ['ExtArgs', 'ClientOptions']
+          const generics = this.context.isTypingSupportForHeavyFeaturesEnabled() ? ['ExtArgs'] : []
+          if (this.context.isPreviewFeatureOn('omitApi') && this.context.isTypingSupportForHeavyFeaturesEnabled()) {
+            generics.push('ClientOptions')
+          }
+          const genericsString = generics.length !== 0 ? `<${generics.join(', ')}>` : ''
           return `\
 /**
  * \`prisma.${methodName}\`: Exposes CRUD operations for the **${m.model}** model.
@@ -517,7 +561,7 @@ ${[
   * const ${uncapitalize(m.plural)} = await prisma.${methodName}.findMany()
   * \`\`\`
   */
-get ${methodName}(): Prisma.${m.model}Delegate<${generics.join(', ')}>;`
+get ${methodName}(): Prisma.${m.model}Delegate${genericsString};`
         })
         .join('\n\n'),
       2,
@@ -525,6 +569,9 @@ get ${methodName}(): Prisma.${m.model}Delegate<${generics.join(', ')}>;`
 }`
   }
   public toTS(): string {
+    // TODO [simplification] [unimportant] make PrismaClient extend TransactionClient instead of TransactionClient omitting some properties of PrismaClient.
+    //  That way, maybe TS has less to check. Just a wild guess though because of previous experience.
+    //  Would have to write test using ts-morph that actually uses the language-service for some queries and then checking what is going on.
     const clientOptions = this.buildClientOptions()
 
     return `${new Datasources(this.internalDatasources).toTS()}
@@ -682,21 +729,34 @@ export type TransactionClient = Omit<Prisma.DefaultPrismaClient, runtime.ITXClie
     }
 
     clientOptions.add(
-      ts.property('omit', ts.namedType('Prisma.GlobalOmitConfig')).optional().setDocComment(ts.docComment`
-        Global configuration for omitting model fields by default.
-
-        @example
-        \`\`\`
-        const prisma = new PrismaClient({
-          omit: {
-            user: {
-              password: true
-            }
-          }
-        })
-        \`\`\`
-      `),
+      ts
+        .property('accelerateUrl', ts.stringType)
+        .optional()
+        .setDocComment(
+          ts.docComment(
+            'Prisma Accelerate URL allowing the client to connect through Accelerate instead of a direct database.',
+          ),
+        ),
     )
+
+    if (this.context.isPreviewFeatureOn('omitApi') && this.context.isTypingSupportForHeavyFeaturesEnabled()) {
+      clientOptions.add(
+        ts.property('omit', ts.namedType('Prisma.GlobalOmitConfig')).optional().setDocComment(ts.docComment`
+          Global configuration for omitting model fields by default.
+
+          @example
+          \`\`\`
+          const prisma = new PrismaClient({
+            omit: {
+              user: {
+                password: true
+              }
+            }
+          })
+          \`\`\`
+        `),
+      )
+    }
 
     return clientOptions
   }

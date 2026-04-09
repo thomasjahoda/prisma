@@ -3,7 +3,7 @@ import * as DMMF from '@prisma/dmmf'
 import * as ts from '@prisma/ts-builders'
 import indent from 'indent-string'
 
-import { getFieldArgName, getSelectName } from '../utils'
+import { getExtArgsGenericDeclarationStringIfNeeded, getFieldArgName, getSelectName } from '../utils'
 import { ArgsTypeBuilder } from './Args'
 import { TAB_SIZE } from './constants'
 import type { Generable } from './Generable'
@@ -47,7 +47,7 @@ export class Count implements Generable {
 
 ${ts.stringify(outputType)}
 
-export type ${getSelectName(name)}<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+export type ${getSelectName(name)}${getExtArgsGenericDeclarationStringIfNeeded(this.context)} = {
 ${indent(
   type.fields
     .map((field) => {

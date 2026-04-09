@@ -2,6 +2,30 @@ import type * as DMMF from '@prisma/dmmf'
 
 import { SqlQueryOutput } from './typedSql'
 
+export type ConstrainedByModelConfig = {
+  whitelist?: string[]
+  // blacklist?: string[]
+}
+
+export type ClientTypingSimplifications = {
+  /**
+   * Removes typing support for the following features:
+   * - extensions
+   * - composite types (available in MongoDB only)
+   * - omitApi: local (via Args) and global omit (via ClientOptions)
+   *
+   * Removes a lot of generics, conditional types and complexity from the generated client typings.
+   * Uses runtime 'exported-simplified' types over 'exported' types whenever available.
+   */
+  // disableExtensionsAndCompositesAndOmit: boolean // TODO [simplification] naming
+  disableTypingSupportForHeavyFeatures: boolean
+  featureConstraints?: {
+    groupBy?: ConstrainedByModelConfig
+    distinct?: ConstrainedByModelConfig
+    // TODO [simplification] add possibility to disable more features? or just reducing complexity of type-system enough?
+  }
+}
+
 export interface GeneratorConfig {
   name: string
   output: EnvValue | null
@@ -16,12 +40,18 @@ export interface GeneratorConfig {
     binaryTargets?: never
     /** `previewFeatures` is a reserved name and will only be available directly at `generator.previewFeatures` */
     previewFeatures?: never
+    /** `clientTypingSimplifications` is a reserved name and will only be available directly at `generator.clientTypingSimplifications` */
+    clientTypingSimplifications?: never
   } & {
     [key: string]: string | string[] | undefined
   }
   binaryTargets: BinaryTargetsEnvValue[]
   // TODO why is this not optional?
   previewFeatures: string[]
+  /**
+   * Optional settings to simplify the generated client typings.
+   */
+  clientTypingSimplifications?: ClientTypingSimplifications
   envPaths?: EnvPaths
   sourceFilePath: string
 }

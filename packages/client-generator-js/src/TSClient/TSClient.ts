@@ -10,7 +10,6 @@ import path from 'path'
 import type { O } from 'ts-toolbelt'
 
 import { DMMFHelper } from '../dmmf'
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in jsdoc
 import { GenerateClientOptions } from '../generateClient'
 import { GenericArgsInfo } from '../GenericsArgsInfo'
 import { buildDebugInitialization } from '../utils/buildDebugInitialization'
@@ -25,6 +24,7 @@ import { buildRequirePath } from '../utils/buildRequirePath'
 import { buildWarnEnvConflicts } from '../utils/buildWarnEnvConflicts'
 import { commonCodeJS, commonCodeTS } from './common'
 import { Count } from './Count'
+import { DefaultArgsAliases } from './DefaultArgsAliases'
 import { Enum } from './Enum'
 import { FieldRefInput } from './FieldRefInput'
 import { type Generable } from './Generable'
@@ -185,6 +185,8 @@ ${buildNFTAnnotations(edge || !copyEngine, clientEngineType, binaryTargets, rela
       dmmf: this.dmmf,
       genericArgsInfo: this.genericsInfo,
       generator: this.options.generator,
+      provider: this.options.activeProvider,
+      defaultArgsAliases: new DefaultArgsAliases(this.options.generator),
     })
 
     const prismaClientClass = new PrismaClientClass(
@@ -195,7 +197,7 @@ ${buildNFTAnnotations(edge || !copyEngine, clientEngineType, binaryTargets, rela
       this.options.browser,
     )
 
-    const commonCode = commonCodeTS(this.options)
+    const commonCode = commonCodeTS(this.options, context)
     const modelAndTypes = Object.values(this.dmmf.typeAndModelMap).reduce((acc, modelOrType) => {
       if (this.dmmf.outputTypeMap.model[modelOrType.name]) {
         acc.push(new Model(modelOrType, context))
@@ -320,6 +322,11 @@ ${this.dmmf.inputObjectTypes.prisma
   .join('\n')}
 
 ${this.dmmf.inputObjectTypes.model?.map((inputType) => new InputType(inputType, context).toTS()).join('\n') ?? ''}
+
+/**
+ * Aliases for legacy arg types
+ */
+${context.defaultArgsAliases.generateAliases()}
 
 /**
  * Batch Payload for updateMany & deleteMany & createMany

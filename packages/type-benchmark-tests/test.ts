@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url'
 
 import { execa } from 'execa'
 
+import { executeTypeCheckingBenchmarkForEntrypointFile } from './typeCheckingBenchmarkExecution.js'
+
 // @ts-ignore
 const parentDir = dirname(fileURLToPath(import.meta.url))
 
@@ -22,9 +24,17 @@ async function main() {
   }[] = []
 
   let hasAnyFailure = false
+  let matchedBenchmarkCount = 0
 
   for (const dir of directories) {
     const cwd = join(parentDir, dir)
+    const benchFiles = getMatchingBenchmarkFiles(dir, testFilter)
+
+    if (benchFiles.length === 0) {
+      continue
+    }
+
+    matchedBenchmarkCount += benchFiles.length
     console.log(`\nProcessing directory: ${dir}`)
 
     try {
@@ -33,18 +43,12 @@ async function main() {
       }
       if (shouldOnlyGenerate) continue
 
-      const benchFiles = getBenchmarkFiles(dir)
       for (const benchFile of benchFiles) {
-        if (testFilter && !`${dir}/${benchFile}`.includes(testFilter)) {
-          console.log(`Skipping ${benchFile} - does not match filter: ${testFilter}`)
-          results.push({
-            directory: `${dir}/${benchFile}`,
-            success: false,
-            skipped: true,
-          })
-          continue
+        const result = await runBenchmark({ benchFile, cwd, updateSnapshots, dir })
+        if (!result.success) {
+          hasAnyFailure = true
         }
-        results.push(await runBenchmark({ benchFile, cwd, updateSnapshots, dir }))
+        results.push(result)
       }
     } catch (error) {
       hasAnyFailure = true
@@ -53,6 +57,11 @@ async function main() {
         success: false,
       })
     }
+  }
+
+  if (testFilter && matchedBenchmarkCount === 0) {
+    console.error(`No benchmark files matched filter: ${testFilter}`)
+    process.exit(1)
   }
 
   printResults(results, updateSnapshots)
@@ -104,14 +113,59 @@ function getTestDirectories() {
 }
 
 function getBenchmarkFiles(dir: string) {
-  return readdirSync(dir).filter((item) => {
-    return statSync(join(dir, item)).isFile() && item.endsWith('.bench.ts')
-  })
+  return readdirSync(dir)
+    .filter((item) => {
+      return (
+        statSync(join(dir, item)).isFile() && (item.endsWith('.bench.ts') || item.endsWith('.type-check-benchmark.ts'))
+      )
+    })
+    .sort()
+}
+
+function getMatchingBenchmarkFiles(dir: string, testFilter?: string) {
+  const benchFiles = getBenchmarkFiles(dir)
+
+  if (!testFilter) {
+    return benchFiles
+  }
+
+  return benchFiles.filter((benchFile) => matchesTestFilter(dir, benchFile, testFilter))
+}
+
+function matchesTestFilter(dir: string, benchFile: string, testFilter: string) {
+  return `${dir}/${benchFile}`.includes(testFilter)
 }
 
 async function runGenerate(dir: string, cwd: string) {
   console.log(`Running generate command in ${dir}...`)
-  await execa('tsx', ['../../cli/src/bin.ts', 'generate'], { cwd, stdio: 'inherit' })
+  const originalDisableHeavyTypingSupport =
+    process.env.PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES
+  // tsx sometimes crashes with stack overflow with the default stack size when
+  // using `pnpm dev` instead of `pnpm build` in the workspace, which skips type
+  // bundling and re-exports the types in `.d.ts` files from the raw TypeScript sources.
+  try {
+    if (usesSimplifiedTypingSupport(dir)) {
+      process.env.PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES = 'true'
+    } else {
+      delete process.env.PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES
+    }
+
+    await execa('tsx', ['--stack-size=2048', '../../cli/src/bin.ts', 'generate', '--no-hints'], {
+      cwd,
+      stdio: 'inherit',
+      env: process.env,
+    })
+  } finally {
+    if (originalDisableHeavyTypingSupport === undefined) {
+      delete process.env.PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES
+    } else {
+      process.env.PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES = originalDisableHeavyTypingSupport
+    }
+  }
+}
+
+function usesSimplifiedTypingSupport(dir: string) {
+  return dir.endsWith('-js-simplified') || dir.endsWith('-ts-simplified')
 }
 
 async function runBenchmark({
@@ -127,16 +181,25 @@ async function runBenchmark({
 }) {
   console.log(`Running ${dir}/${benchFile}...`)
   try {
-    await execa('tsx', [benchFile], {
-      cwd,
-      stdio: 'inherit',
-      env: { ATTEST_updateSnapshots: updateSnapshots ? 'true' : 'false' },
-    })
+    if (benchFile.endsWith('.type-check-benchmark.ts')) {
+      await executeTypeCheckingBenchmarkForEntrypointFile({
+        cwd,
+        entrypointFile: benchFile,
+        updateSnapshots,
+      })
+    } else {
+      await execa('tsx', [benchFile], {
+        cwd,
+        stdio: 'inherit',
+        env: { ATTEST_updateSnapshots: updateSnapshots ? 'true' : 'false' },
+      })
+    }
     return {
       directory: `${dir}/${benchFile}`,
       success: true,
     }
-  } catch {
+  } catch (error) {
+    console.error(error)
     return {
       directory: `${dir}/${benchFile}`,
       success: false,

@@ -2,48 +2,57 @@ import { uncapitalize } from '@prisma/client-common'
 import * as DMMF from '@prisma/dmmf'
 import * as ts from '@prisma/ts-builders'
 
-import { extArgsParam, getPayloadName } from '../utils'
+import { addExtArgsParameterIfNeeded, getPayloadName } from '../utils'
 import { GenerateContext } from './GenerateContext'
 import { buildModelOutputProperty } from './Output'
 
-export function buildModelPayload(model: DMMF.Model, context: GenerateContext) {
-  const isComposite = context.dmmf.isComposite(model.name)
-
+export function buildTypesForModelFieldsByType(model: DMMF.Model, context: GenerateContext) {
   const objects = ts.objectType()
-  const scalars = ts.objectType()
   const composites = ts.objectType()
+  const scalars = ts.objectType()
 
   for (const field of model.fields) {
     if (field.kind === 'object') {
       if (context.dmmf.isComposite(field.type)) {
-        composites.add(buildModelOutputProperty(field, context.dmmf))
+        composites.add(buildModelOutputProperty(field, context.dmmf, context))
       } else {
-        objects.add(buildModelOutputProperty(field, context.dmmf))
+        objects.add(buildModelOutputProperty(field, context.dmmf, context))
       }
     } else if (field.kind === 'enum' || field.kind === 'scalar') {
-      scalars.add(buildModelOutputProperty(field, context.dmmf))
+      scalars.add(buildModelOutputProperty(field, context.dmmf, context))
     }
   }
+  return { objects, composites, scalars }
+}
 
-  const scalarsType = isComposite
-    ? scalars
-    : ts
-        .namedType('$Extensions.GetPayloadResult')
-        .addGenericArgument(scalars)
-        .addGenericArgument(ts.namedType('ExtArgs').subKey('result').subKey(uncapitalize(model.name)))
+export function buildModelPayload(model: DMMF.Model, context: GenerateContext) {
+  const isComposite = context.dmmf.isComposite(model.name)
+  const { objects, composites, scalars } = buildTypesForModelFieldsByType(model, context)
 
-  const payloadTypeDeclaration = ts.typeDeclaration(
-    getPayloadName(model.name, false),
-    ts
-      .objectType()
-      .add(ts.property('name', ts.stringLiteral(model.name)))
-      .add(ts.property('objects', objects))
-      .add(ts.property('scalars', scalarsType))
-      .add(ts.property('composites', composites)),
-  )
+  // disableTypingSupportForHeavyFeatures inverts where the simple scalars are stored.
+  // Normally, the scalars originate in the model payload.
+  // When simplified they originate in the <Model> type outside of the Prisma namespace. (to ease the load for the language-service and to be able to even split up the file in the future)
+  const scalarsType = !context.isTypingSupportForHeavyFeaturesEnabled()
+    ? ts.namedType(model.name)
+    : isComposite
+      ? scalars
+      : ts
+          .namedType('$Extensions.GetPayloadResult')
+          .addGenericArgument(scalars)
+          .addGenericArgument(ts.namedType('ExtArgs').subKey('result').subKey(uncapitalize(model.name)))
+
+  const payloadType = ts
+    .objectType()
+    .add(ts.property('name', ts.stringLiteral(model.name)))
+    .add(ts.property('objects', objects))
+    .add(ts.property('scalars', scalarsType))
+  if (context.isTypingSupportForHeavyFeaturesEnabled()) {
+    payloadType.add(ts.property('composites', composites))
+  }
+  const payloadTypeDeclaration = ts.typeDeclaration(getPayloadName(model.name, false), payloadType)
 
   if (!isComposite) {
-    payloadTypeDeclaration.addGenericParameter(extArgsParam)
+    addExtArgsParameterIfNeeded(payloadTypeDeclaration, context)
   }
 
   return ts.moduleExport(payloadTypeDeclaration)
