@@ -79,6 +79,7 @@ const stageRoot =
 
 const nameMap = new Map<string, string>([
   ['@prisma/client', `${scope}/prisma-client`],
+  ['@prisma/generator', `${scope}/prisma-generator`],
   ['@prisma/internals', `${scope}/prisma-internals`],
   ['prisma', `${scope}/prisma`],
 ])
@@ -93,6 +94,11 @@ const packageSpecs: PackageSpec[] = [
     sourceName: '@prisma/client',
     targetName: nameMap.get('@prisma/client')!,
     packageDir: path.join(repoRoot, 'packages', 'client'),
+  },
+  {
+    sourceName: '@prisma/generator',
+    targetName: nameMap.get('@prisma/generator')!,
+    packageDir: path.join(repoRoot, 'packages', 'generator'),
   },
   {
     sourceName: 'prisma',
