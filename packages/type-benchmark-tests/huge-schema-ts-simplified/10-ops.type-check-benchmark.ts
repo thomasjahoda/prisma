@@ -37,4 +37,4 @@ client.model3.upsert({
   },
 })
 client.model1.deleteMany({ where: { optionalFloat: { lt: 0 } } })
-// type-check-benchmark-instantiations: 175185
+// type-check-benchmark-instantiations: 171685

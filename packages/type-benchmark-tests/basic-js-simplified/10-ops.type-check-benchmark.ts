@@ -79,4 +79,4 @@ client.user.create({
     name: 'New User',
   },
 })
-// type-check-benchmark-instantiations: 4842
+// type-check-benchmark-instantiations: 2365
