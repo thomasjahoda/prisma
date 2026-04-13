@@ -434,7 +434,7 @@ async function printInstantiationComparisonTable(measurements: InstantiationMeas
       return groupOrder
     }
 
-    return a.testCase.localeCompare(b.testCase)
+    return compareTestCases(a.testCase, b.testCase)
   })
 
   const lines = [
@@ -473,4 +473,37 @@ function formatInstantiationCount(instantiations: number | undefined) {
   }
 
   return instantiations.toLocaleString('en-US')
+}
+
+function compareTestCases(a: string, b: string) {
+  const parsedA = parseTestCase(a)
+  const parsedB = parseTestCase(b)
+
+  if (parsedA.isTypeCheck !== parsedB.isTypeCheck) {
+    return parsedA.isTypeCheck ? -1 : 1
+  }
+
+  const fileOrder = parsedA.fileName.localeCompare(parsedB.fileName)
+  if (fileOrder !== 0) {
+    return fileOrder
+  }
+
+  const benchmarkNameOrder = (parsedA.benchmarkName ?? '').localeCompare(parsedB.benchmarkName ?? '')
+  if (benchmarkNameOrder !== 0) {
+    return benchmarkNameOrder
+  }
+
+  return a.localeCompare(b)
+}
+
+function parseTestCase(testCase: string) {
+  const match = testCase.match(/^(?<fileName>.+?)\s+"(?<benchmarkName>[\s\S]*)"$/)
+  const fileName = match?.groups?.fileName ?? testCase
+  const benchmarkName = match?.groups?.benchmarkName
+
+  return {
+    fileName,
+    benchmarkName,
+    isTypeCheck: fileName.endsWith('.type-check-benchmark.ts'),
+  }
 }
