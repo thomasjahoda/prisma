@@ -11,6 +11,23 @@ export type TypeCheckingBenchmarkExecutionResult = {
   referencedInstantiations?: number
 }
 
+type TypeCheckingBenchmarkFailureKind = 'type-checking-failed' | 'instantiation-mismatch'
+
+export class TypeCheckingBenchmarkExecutionError extends Error {
+  constructor(
+    message: string,
+    readonly kind: TypeCheckingBenchmarkFailureKind,
+    readonly metadata: {
+      instantiations?: number
+      durationSeconds?: number
+      referencedInstantiations?: number
+    } = {},
+  ) {
+    super(message)
+    this.name = 'TypeCheckingBenchmarkExecutionError'
+  }
+}
+
 export async function executeTypeCheckingBenchmarkForEntrypointFile({
   cwd,
   entrypointFile,
@@ -50,7 +67,10 @@ export async function executeTypeCheckingBenchmarkForEntrypointFile({
     const diagnosticsOutput = [stdout, stderr].filter(Boolean).join('\n')
 
     if (exitCode !== 0) {
-      throw new Error(`Type checking failed for ${entrypointFile}\n${diagnosticsOutput}`)
+      throw new TypeCheckingBenchmarkExecutionError(
+        `Type checking failed for ${entrypointFile}\n${diagnosticsOutput}`,
+        'type-checking-failed',
+      )
     }
 
     const instantiations = parseInstantiations(diagnosticsOutput)
@@ -91,8 +111,14 @@ export async function executeTypeCheckingBenchmarkForEntrypointFile({
       }
     }
 
-    throw new Error(
+    throw new TypeCheckingBenchmarkExecutionError(
       `Type-check benchmark mismatch for ${entrypointFile}: got ${instantiations}, expected ${referencedInstantiations} (${deltaPercentage}%).`,
+      'instantiation-mismatch',
+      {
+        instantiations,
+        durationSeconds: duration,
+        referencedInstantiations,
+      },
     )
   } finally {
     await rm(temporaryTsconfigPath, { force: true })
