@@ -5,6 +5,12 @@ import { execa } from 'execa'
 
 const referenceCommentPattern = /\/\/\s*type-check-benchmark-instantiations:\s*(\d+)\s*$/m
 
+export type TypeCheckingBenchmarkExecutionResult = {
+  instantiations: number
+  durationSeconds: number
+  referencedInstantiations?: number
+}
+
 export async function executeTypeCheckingBenchmarkForEntrypointFile({
   cwd,
   entrypointFile,
@@ -13,7 +19,7 @@ export async function executeTypeCheckingBenchmarkForEntrypointFile({
   cwd: string
   entrypointFile: string
   updateSnapshots: boolean
-}) {
+}): Promise<TypeCheckingBenchmarkExecutionResult> {
   const entrypointPath = join(cwd, entrypointFile)
   const source = await readFile(entrypointPath, 'utf8')
   const referencedInstantiations = readReferencedInstantiations(source)
@@ -55,14 +61,21 @@ export async function executeTypeCheckingBenchmarkForEntrypointFile({
     if (referencedInstantiations === undefined) {
       await writeReferenceComment(entrypointPath, source, instantiations)
       console.log(`📝 Recorded reference instantiations for ${entrypointFile}`)
-      return
+      return {
+        instantiations,
+        durationSeconds: duration,
+      }
     }
 
     console.log(`🎯 Reference: ${referencedInstantiations} instantiations`)
 
     if (instantiations === referencedInstantiations) {
       console.log('📊 Delta: 0.00%')
-      return
+      return {
+        instantiations,
+        durationSeconds: duration,
+        referencedInstantiations,
+      }
     }
 
     const deltaPercentage = (((instantiations - referencedInstantiations) / referencedInstantiations) * 100).toFixed(2)
@@ -71,7 +84,11 @@ export async function executeTypeCheckingBenchmarkForEntrypointFile({
       await writeReferenceComment(entrypointPath, source, instantiations)
       console.log(`📝 Updated reference instantiations from ${referencedInstantiations} to ${instantiations}`)
       console.log(`📊 Delta: ${deltaPercentage}%`)
-      return
+      return {
+        instantiations,
+        durationSeconds: duration,
+        referencedInstantiations,
+      }
     }
 
     throw new Error(

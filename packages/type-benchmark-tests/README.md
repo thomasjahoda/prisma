@@ -8,11 +8,14 @@ This test suite shall ensure that we are not running into regressions with our t
 
 ## Usage
 
+NOTE: All following commands have to be executed from the current directory (packages/type-benchmark-tests).
+
 - Make sure the overall monorepo has dependency installed (`pnpm install` in root) and is build (`pnpm build` in root).
 - Run `pnpm test` to run the test suite
 - Run `pnpm test:update` to update snapshot recordings
 - Run `pnpm test <filter>` to run only files including <filter> in their filename
 - Run `pnpm test:update <filter>` to only update snapshots of files including <filter> in their filename
+- Add `--skipGenerate` to skip generating the Prisma client for the schemas, e.g. if you only change the tests and want to iterate quickly.
 
 ## Structure
 
