@@ -1,5 +1,7 @@
 import { bench } from '@ark/attest'
-import type { Prisma, PrismaClient } from './generated'
+
+// @ts-ignore
+import type { Prisma, PrismaClient } from './generated/client'
 
 declare const PrismaClientConstructor: typeof PrismaClient
 
@@ -60,7 +62,7 @@ bench('log config applied', () => {
 
   passClientAround(client)
   passToAnyClientAround(client)
-}).types([86706, 'instantiations'])
+}).types([697, 'instantiations'])
 
 bench('errorFormat applied', () => {
   const client = new PrismaClientConstructor({
@@ -73,7 +75,7 @@ bench('errorFormat applied', () => {
   }
 
   return passClientAround(client)
-}).types([86484, 'instantiations'])
+}).types([517, 'instantiations'])
 
 bench('adapter applied', () => {
   const client = new PrismaClientConstructor({
@@ -89,7 +91,7 @@ bench('adapter applied', () => {
   }
 
   return passClientAround(client)
-}).types([86500, 'instantiations'])
+}).types([724, 'instantiations'])
 
 bench('global omit applied', async () => {
   const client = new PrismaClientConstructor({
@@ -140,7 +142,7 @@ bench('passed around client then extend', () => {
 
   return passClientAround(client)
   // Apparently passing the client around and then extending it is way slower.
-}).types([88630, 'instantiations'])
+}).types([3042, 'instantiations'])
 
 bench('fully extended', () => {
   const client = new PrismaClientConstructor({

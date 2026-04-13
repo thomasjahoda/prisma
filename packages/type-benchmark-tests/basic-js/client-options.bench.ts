@@ -1,5 +1,7 @@
 import { bench } from '@ark/attest'
-import { Prisma, PrismaClient } from './generated'
+
+// @ts-ignore
+import { Prisma, PrismaClient } from './generated/client'
 
 declare const PrismaClientConstructor: typeof PrismaClient
 
@@ -60,7 +62,7 @@ bench('log config applied', () => {
 
   passClientAround(client)
   passToAnyClientAround(client)
-}).types([19963, 'instantiations'])
+}).types([688, 'instantiations'])
 
 bench('errorFormat applied', () => {
   const client = new PrismaClientConstructor({
@@ -73,7 +75,7 @@ bench('errorFormat applied', () => {
   }
 
   return passClientAround(client)
-}).types([19741, 'instantiations'])
+}).types([508, 'instantiations'])
 
 bench('adapter applied', () => {
   const client = new PrismaClientConstructor({
@@ -89,7 +91,7 @@ bench('adapter applied', () => {
   }
 
   return passClientAround(client)
-}).types([19757, 'instantiations'])
+}).types([715, 'instantiations'])
 
 bench('global omit applied', async () => {
   const client = new PrismaClientConstructor({
@@ -140,7 +142,7 @@ bench('passed around client then extend', () => {
 
   return passClientAround(client)
   // Apparently passing the client around and then extending it is way slower.
-}).types([21005, 'instantiations'])
+}).types([2151, 'instantiations'])
 
 bench('fully extended', () => {
   const client = new PrismaClientConstructor({
@@ -183,7 +185,7 @@ bench('fully extended', () => {
   }
 
   return passClientAround(client)
-}).types([25912, 'instantiations'])
+}).types([8355, 'instantiations'])
 
 bench('fully extended without client options', () => {
   const client = new PrismaClientConstructor({
@@ -225,7 +227,7 @@ bench('fully extended without client options', () => {
   }
 
   return passClientAround(client)
-}).types([25882, 'instantiations'])
+}).types([8283, 'instantiations'])
 
 // ------------------------------------------------------------
 // Workaround solutions using typeof operator
@@ -279,4 +281,4 @@ bench('Any PrismaClient', () => {
 
   passClientAround(client)
   // with the suggested variance annotations, this value goes down to 247 instantiations
-}).types([19840, 'instantiations'])
+}).types([601, 'instantiations'])

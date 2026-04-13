@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-floating-promises */
 
 // @ts-ignore
-import { PrismaClient } from './generated'
+import { PrismaClient } from './generated/client'
 
 const client: PrismaClient = undefined as any
 
 client.model1.findUnique({ where: { id: 1 } })
-// type-check-benchmark-instantiations: 1159
+// type-check-benchmark-instantiations: 172414

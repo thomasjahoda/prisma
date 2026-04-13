@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-floating-promises */
 
 // @ts-ignore
-import { PrismaClient } from './generated'
+import { PrismaClient } from './generated/client'
 
 const client: PrismaClient = undefined as any
 
@@ -30,4 +30,4 @@ client.model0.findMany({
   },
   select: { model1: true },
 })
-// type-check-benchmark-instantiations: 3813
+// type-check-benchmark-instantiations: 175217

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-floating-promises */
 
 // @ts-ignore
-import { PrismaClient } from './generated'
+import { PrismaClient } from './generated/client'
 
 const client: PrismaClient = undefined as any
 
@@ -37,4 +37,4 @@ client.model3.upsert({
   },
 })
 client.model1.deleteMany({ where: { optionalFloat: { lt: 0 } } })
-// type-check-benchmark-instantiations: 4528
+// type-check-benchmark-instantiations: 175767

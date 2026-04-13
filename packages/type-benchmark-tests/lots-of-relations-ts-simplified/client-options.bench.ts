@@ -1,4 +1,6 @@
 import { bench } from '@ark/attest'
+
+// @ts-ignore
 import type { Prisma, PrismaClient } from './generated/client'
 
 declare const PrismaClientConstructor: typeof PrismaClient
@@ -60,7 +62,7 @@ bench('log config applied', () => {
 
   passClientAround(client)
   passToAnyClientAround(client)
-}).types([758, 'instantiations'])
+}).types([697, 'instantiations'])
 
 bench('errorFormat applied', () => {
   const client = new PrismaClientConstructor({
@@ -73,7 +75,7 @@ bench('errorFormat applied', () => {
   }
 
   return passClientAround(client)
-}).types([591, 'instantiations'])
+}).types([517, 'instantiations'])
 
 bench('adapter applied', () => {
   const client = new PrismaClientConstructor({
@@ -89,7 +91,7 @@ bench('adapter applied', () => {
   }
 
   return passClientAround(client)
-}).types([611, 'instantiations'])
+}).types([724, 'instantiations'])
 
 bench('global omit applied', async () => {
   const client = new PrismaClientConstructor({
@@ -111,7 +113,7 @@ bench('global omit applied', async () => {
 
   // @ts-expect-error - client with omitted fields is not equal to a client without any config as the omitted fields are missing
   return passClientAround(client)
-}).types([833, 'instantiations'])
+}).types([88887, 'instantiations'])
 
 bench('extended client then pass around', () => {
   const client = new PrismaClientConstructor({
@@ -126,7 +128,7 @@ bench('extended client then pass around', () => {
   // @ts-expect-error - once a client is extended, it is no longer assignable to the base client type
   return passClientAround(client)
   // Apparently extending the client and then passing it around is way faster.
-}).types([590, 'instantiations'])
+}).types([3202, 'instantiations'])
 
 bench('passed around client then extend', () => {
   const client = new PrismaClientConstructor({
@@ -140,7 +142,7 @@ bench('passed around client then extend', () => {
 
   return passClientAround(client)
   // Apparently passing the client around and then extending it is way slower.
-}).types([591, 'instantiations'])
+}).types([3042, 'instantiations'])
 
 bench('fully extended', () => {
   const client = new PrismaClientConstructor({
@@ -184,7 +186,7 @@ bench('fully extended', () => {
 
   // @ts-expect-error - once a client is extended, it is no longer assignable to the base client type
   return passClientAround(client)
-}).types([627, 'instantiations'])
+}).types([26915, 'instantiations'])
 
 bench('fully extended without client options', () => {
   const client = new PrismaClientConstructor({
@@ -227,7 +229,7 @@ bench('fully extended without client options', () => {
 
   // @ts-expect-error - once a client is extended, it is no longer assignable to the base client type
   return passClientAround(client)
-}).types([599, 'instantiations'])
+}).types([26843, 'instantiations'])
 
 // ------------------------------------------------------------
 // Workaround solutions using typeof operator
@@ -250,7 +252,7 @@ bench('using typeof - log config applied', () => {
   }
 
   passClientAround(client)
-}).types([685, 'instantiations'])
+}).types([606, 'instantiations'])
 
 bench('using typeof - errorFormat applied', () => {
   const client = new PrismaClientConstructor({
@@ -265,7 +267,7 @@ bench('using typeof - errorFormat applied', () => {
   }
 
   return passClientAround(client)
-}).types([589, 'instantiations'])
+}).types([513, 'instantiations'])
 
 bench('using typeof - adapter applied', () => {
   const client = new PrismaClientConstructor({
@@ -283,7 +285,7 @@ bench('using typeof - adapter applied', () => {
   }
 
   return passClientAround(client)
-}).types([609, 'instantiations'])
+}).types([720, 'instantiations'])
 
 bench('using typeof - global omit applied', () => {
   const client = new PrismaClientConstructor({
@@ -300,7 +302,7 @@ bench('using typeof - global omit applied', () => {
   }
 
   return passClientAround(client)
-}).types([636, 'instantiations'])
+}).types([578, 'instantiations'])
 
 bench('using typeof - fully extended', () => {
   const client = new PrismaClientConstructor({
@@ -345,4 +347,4 @@ bench('using typeof - fully extended', () => {
   }
 
   return passClientAround(client)
-}).types([626, 'instantiations'])
+}).types([26669, 'instantiations'])

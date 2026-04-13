@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-floating-promises */
 
 // @ts-ignore
-import { PrismaClient } from './generated'
+import { PrismaClient } from './generated/client'
 
 const client: PrismaClient = undefined as any
 
@@ -79,4 +79,4 @@ client.user.create({
     name: 'New User',
   },
 })
-// type-check-benchmark-instantiations: 4744
+// type-check-benchmark-instantiations: 175892

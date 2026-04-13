@@ -30,4 +30,4 @@ client.model0.findMany({
   },
   select: { model1: true },
 })
-// type-check-benchmark-instantiations: 171613
+// type-check-benchmark-instantiations: 175217

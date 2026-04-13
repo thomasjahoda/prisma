@@ -1,4 +1,6 @@
 import { bench } from '@ark/attest'
+
+// @ts-ignore
 import { Prisma, PrismaClient } from './generated/client'
 
 declare const PrismaClientConstructor: typeof PrismaClient
@@ -60,7 +62,7 @@ bench('log config applied', () => {
 
   passClientAround(client)
   passToAnyClientAround(client)
-}).types([758, 'instantiations'])
+}).types([688, 'instantiations'])
 
 bench('errorFormat applied', () => {
   const client = new PrismaClientConstructor({
@@ -73,7 +75,7 @@ bench('errorFormat applied', () => {
   }
 
   return passClientAround(client)
-}).types([591, 'instantiations'])
+}).types([508, 'instantiations'])
 
 bench('adapter applied', () => {
   const client = new PrismaClientConstructor({
@@ -89,7 +91,7 @@ bench('adapter applied', () => {
   }
 
   return passClientAround(client)
-}).types([611, 'instantiations'])
+}).types([715, 'instantiations'])
 
 bench('global omit applied', async () => {
   const client = new PrismaClientConstructor({
@@ -111,7 +113,7 @@ bench('global omit applied', async () => {
 
   // @ts-expect-error - client with omitted fields is not equal to a client without any config as the omitted fields are missing
   return passClientAround(client)
-}).types([833, 'instantiations'])
+}).types([65328, 'instantiations'])
 
 bench('extended client then pass around', () => {
   const client = new PrismaClientConstructor({
@@ -126,7 +128,7 @@ bench('extended client then pass around', () => {
   // @ts-expect-error - once a client is extended, it is no longer assignable to the base client type
   return passClientAround(client)
   // Apparently extending the client and then passing it around is way faster.
-}).types([590, 'instantiations'])
+}).types([2311, 'instantiations'])
 
 bench('passed around client then extend', () => {
   const client = new PrismaClientConstructor({
@@ -140,7 +142,7 @@ bench('passed around client then extend', () => {
 
   return passClientAround(client)
   // Apparently passing the client around and then extending it is way slower.
-}).types([591, 'instantiations'])
+}).types([2151, 'instantiations'])
 
 bench('fully extended', () => {
   const client = new PrismaClientConstructor({
@@ -183,7 +185,7 @@ bench('fully extended', () => {
   }
 
   return passClientAround(client)
-}).types([682, 'instantiations'])
+}).types([8355, 'instantiations'])
 
 bench('fully extended without client options', () => {
   const client = new PrismaClientConstructor({
@@ -225,7 +227,7 @@ bench('fully extended without client options', () => {
   }
 
   return passClientAround(client)
-}).types([654, 'instantiations'])
+}).types([8283, 'instantiations'])
 
 // ------------------------------------------------------------
 // Workaround solutions using typeof operator
@@ -248,7 +250,7 @@ bench('using typeof', () => {
   }
 
   passClientAround(client)
-}).types([685, 'instantiations'])
+}).types([597, 'instantiations'])
 
 // ------------------------------------------------------------
 // Suggestion from David Blass - to be verified
@@ -279,4 +281,4 @@ bench('Any PrismaClient', () => {
 
   passClientAround(client)
   // with the suggested variance annotations, this value goes down to 247 instantiations
-}).types([685, 'instantiations'])
+}).types([601, 'instantiations'])
