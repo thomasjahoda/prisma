@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { execa } from 'execa'
+import { format as formatWithPrettier } from 'prettier'
 
 import { executeTypeCheckingBenchmarkForEntrypointFile } from './typeCheckingBenchmarkExecution.js'
 
@@ -100,7 +101,7 @@ async function main() {
   }
 
   printResults(results, updateSnapshots)
-  printInstantiationComparisonTable(instantiationMeasurements)
+  await printInstantiationComparisonTable(instantiationMeasurements)
 
   process.exit(hasAnyFailure ? 1 : 0)
 }
@@ -155,7 +156,16 @@ function getBenchmarkFiles(dir: string) {
         statSync(join(dir, item)).isFile() && (item.endsWith('.bench.ts') || item.endsWith('.type-check-benchmark.ts'))
       )
     })
-    .sort()
+    .sort((a, b) => {
+      const aIsTypeCheckBenchmark = a.endsWith('.type-check-benchmark.ts')
+      const bIsTypeCheckBenchmark = b.endsWith('.type-check-benchmark.ts')
+
+      if (aIsTypeCheckBenchmark !== bIsTypeCheckBenchmark) {
+        return aIsTypeCheckBenchmark ? -1 : 1
+      }
+
+      return a.localeCompare(b)
+    })
 }
 
 function getMatchingBenchmarkFiles(dir: string, testFilter?: string) {
@@ -400,7 +410,7 @@ function printResults(results: BenchmarkRunResult[], updateSnapshots: boolean) {
   console.log('========================')
 }
 
-function printInstantiationComparisonTable(measurements: InstantiationMeasurement[]) {
+async function printInstantiationComparisonTable(measurements: InstantiationMeasurement[]) {
   if (measurements.length === 0) {
     return
   }
@@ -446,7 +456,14 @@ function printInstantiationComparisonTable(measurements: InstantiationMeasuremen
 
   console.log('\nInstantiation Count Comparison:')
   console.log('========================')
-  console.log(lines.join('\n'))
+  console.log('')
+  const markdownTable = lines.join('\n')
+  const formattedMarkdownTable = await formatWithPrettier(markdownTable, {
+    parser: 'markdown',
+  })
+
+  console.log(formattedMarkdownTable.trimEnd())
+  console.log('')
   console.log('========================')
 }
 
