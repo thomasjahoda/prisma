@@ -1,21 +1,22 @@
 import { readdirSync, statSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { execa } from 'execa'
 import { format as formatWithPrettier } from 'prettier'
 
-import { executeTypeCheckingBenchmarkForEntrypointFile } from './typeCheckingBenchmarkExecution.js'
+import {
+  TypeCheckingBenchmarkExecutionError,
+  executeTypeCheckingBenchmarkForEntrypointFile,
+} from './typeCheckingBenchmarkExecution.js'
 
 // @ts-ignore
 const parentDir = dirname(fileURLToPath(import.meta.url))
 
 const directoryBlockList = ['node_modules']
 const benchmarkVariants = ['ts', 'ts-simplified', 'js', 'js-simplified'] as const
-const typeCheckReferenceCommentPattern = /\/\/\s*type-check-benchmark-instantiations:\s*(\d+)\s*$/m
-const benchInstantiationPattern =
-  /bench\(\s*(['"`])(?<benchmarkName>(?:\\.|(?!\1)[\s\S])*)\1\s*,[\s\S]*?\)\s*\.types\(\s*\[\s*(?<instantiations>\d+)\s*,\s*['"]instantiations['"]\s*\]\s*\)/g
+const benchStartLinePattern = /^🏌️\s+(.+)$/u
+const resultLinePattern = /^⛳ Result:\s+([\d,]+)\s+instantiations$/u
 
 type BenchmarkVariant = (typeof benchmarkVariants)[number]
 
@@ -260,8 +261,8 @@ async function runBenchmark({
   const benchmarkPath = `${directoryInfo.directory}/${benchFile}`
   console.log(`Running ${benchmarkPath}...`)
 
-  try {
-    if (benchFile.endsWith('.type-check-benchmark.ts')) {
+  if (benchFile.endsWith('.type-check-benchmark.ts')) {
+    try {
       const executionResult = await executeTypeCheckingBenchmarkForEntrypointFile({
         cwd,
         entrypointFile: benchFile,
@@ -280,104 +281,114 @@ async function runBenchmark({
           },
         ],
       }
-    }
+    } catch (error) {
+      console.error(error)
 
-    await execa('tsx', [benchFile], {
-      cwd,
-      stdio: 'inherit',
-      env: { ATTEST_updateSnapshots: updateSnapshots ? 'true' : 'false' },
-    })
-
-    return {
-      directory: benchmarkPath,
-      success: true,
-      instantiationMeasurements: await readBenchInstantiationMeasurementsFromFile({
-        benchmarkFilePath: join(cwd, benchFile),
-        benchFile,
-        directoryInfo,
-      }),
-    }
-  } catch (error) {
-    console.error(error)
-    return {
-      directory: benchmarkPath,
-      success: false,
-      instantiationMeasurements: await readInstantiationMeasurementsFromSourceFallback({
-        benchFile,
-        cwd,
-        directoryInfo,
-      }),
-    }
-  }
-}
-
-async function readInstantiationMeasurementsFromSourceFallback({
-  benchFile,
-  cwd,
-  directoryInfo,
-}: {
-  benchFile: string
-  cwd: string
-  directoryInfo: BenchmarkDirectoryInfo
-}): Promise<InstantiationMeasurement[]> {
-  try {
-    if (benchFile.endsWith('.type-check-benchmark.ts')) {
-      const source = await readFile(join(cwd, benchFile), 'utf8')
-      const instantiations = readTypeCheckReferenceInstantiations(source)
-
-      if (instantiations === undefined) {
-        return []
+      if (error instanceof TypeCheckingBenchmarkExecutionError && error.kind === 'instantiation-mismatch') {
+        const instantiations = error.metadata.instantiations
+        return {
+          directory: benchmarkPath,
+          success: false,
+          instantiationMeasurements:
+            instantiations === undefined
+              ? []
+              : [
+                  {
+                    group: directoryInfo.group,
+                    variant: directoryInfo.variant,
+                    testCase: benchFile,
+                    instantiations,
+                  },
+                ],
+        }
       }
 
-      return [
-        {
-          group: directoryInfo.group,
-          variant: directoryInfo.variant,
-          testCase: benchFile,
-          instantiations,
-        },
-      ]
+      // For actual type-checking failures, do not report instantiation counts.
+      return {
+        directory: benchmarkPath,
+        success: false,
+        instantiationMeasurements: [],
+      }
     }
+  }
 
-    return await readBenchInstantiationMeasurementsFromFile({
-      benchmarkFilePath: join(cwd, benchFile),
+  const benchRun = execa('tsx', [benchFile], {
+    cwd,
+    env: { ATTEST_updateSnapshots: updateSnapshots ? 'true' : 'false' },
+    reject: false,
+    all: true,
+  })
+
+  const streamedOutputChunks: string[] = []
+  benchRun.all?.on('data', (chunk) => {
+    const text = chunk.toString()
+    streamedOutputChunks.push(text)
+    process.stdout.write(text)
+  })
+
+  const { exitCode, stdout, stderr } = await benchRun
+  const outputText = getCombinedCommandOutput({
+    streamedOutputChunks,
+    stdout,
+    stderr,
+  })
+
+  return {
+    directory: benchmarkPath,
+    success: exitCode === 0,
+    instantiationMeasurements: parseBenchInstantiationMeasurementsFromOutput({
+      outputText,
       benchFile,
       directoryInfo,
-    })
-  } catch {
-    return []
+    }),
   }
 }
 
-async function readBenchInstantiationMeasurementsFromFile({
-  benchmarkFilePath,
+function getCombinedCommandOutput({
+  streamedOutputChunks,
+  stdout,
+  stderr,
+}: {
+  streamedOutputChunks: string[]
+  stdout: string
+  stderr: string
+}) {
+  if (streamedOutputChunks.length > 0) {
+    return streamedOutputChunks.join('')
+  }
+
+  // Fallback for environments where `all` stream is unavailable.
+  return [stdout, stderr].filter(Boolean).join('\n')
+}
+
+function parseBenchInstantiationMeasurementsFromOutput({
+  outputText,
   benchFile,
   directoryInfo,
 }: {
-  benchmarkFilePath: string
+  outputText: string
   benchFile: string
   directoryInfo: BenchmarkDirectoryInfo
-}): Promise<InstantiationMeasurement[]> {
-  const source = await readFile(benchmarkFilePath, 'utf8')
-  return parseBenchInstantiationMeasurementsFromSource(source, benchFile, directoryInfo)
-}
-
-function parseBenchInstantiationMeasurementsFromSource(
-  source: string,
-  benchFile: string,
-  directoryInfo: BenchmarkDirectoryInfo,
-): InstantiationMeasurement[] {
+}): InstantiationMeasurement[] {
   const measurements: InstantiationMeasurement[] = []
+  const lines = outputText.split(/\r?\n/)
+  let currentBenchmarkName: string | null = null
 
-  for (const match of source.matchAll(benchInstantiationPattern)) {
-    const benchmarkName = match.groups?.benchmarkName
-    const instantiationsRaw = match.groups?.instantiations
+  for (const rawLine of lines) {
+    const line = stripAnsi(rawLine).trim()
 
-    if (!benchmarkName || !instantiationsRaw) {
+    const benchStartMatch = line.match(benchStartLinePattern)
+    if (benchStartMatch) {
+      currentBenchmarkName = benchStartMatch[1]
       continue
     }
 
-    const instantiations = Number(instantiationsRaw)
+    const resultMatch = line.match(resultLinePattern)
+    if (!resultMatch || !currentBenchmarkName) {
+      continue
+    }
+
+    const instantiations = Number(resultMatch[1].replaceAll(',', ''))
     if (!Number.isFinite(instantiations)) {
       continue
     }
@@ -385,7 +396,7 @@ function parseBenchInstantiationMeasurementsFromSource(
     measurements.push({
       group: directoryInfo.group,
       variant: directoryInfo.variant,
-      testCase: `${benchFile} "${benchmarkName}"`,
+      testCase: `${benchFile} "${currentBenchmarkName}"`,
       instantiations,
     })
   }
@@ -393,9 +404,8 @@ function parseBenchInstantiationMeasurementsFromSource(
   return measurements
 }
 
-function readTypeCheckReferenceInstantiations(source: string) {
-  const match = source.match(typeCheckReferenceCommentPattern)
-  return match ? Number(match[1]) : undefined
+function stripAnsi(text: string) {
+  return text.replace(/\u001B\[[0-9;]*m/g, '')
 }
 
 function printResults(results: BenchmarkRunResult[], updateSnapshots: boolean) {
