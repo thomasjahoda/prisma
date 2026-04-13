@@ -31,7 +31,7 @@
     "bench": "node -r esbuild-register scripts/bench.ts | tee output.txt",
     "bench-stdout-only": "node -r esbuild-register scripts/bench.ts",
     "prepare": "is-ci || husky",
-    "clean": "git clean -fdx -e /.envrc.local -e /docker/docker-compose.override.yml -e /sandbox -e /.jj",
+    "clean": "git clean -fdx -e /.envrc.local -e /docker/docker-compose.override.yml -e /sandbox -e /.jj -e /.idea -e /.local -e /node_modules -e packages/type-benchmark-tests/learningsuite -e packages/type-benchmark-tests/learningsuite-js -e packages/type-benchmark-tests/learningsuite-js-simplified -e packages/type-benchmark-tests/learningsuite-ts-simplified",
     "bundle-size": "pnpm i && pnpm build && pnpm -r --parallel exec pnpm pack && cd packages/bundle-size && pnpm run create-gzip-files"
   },
   "devDependencies": {
