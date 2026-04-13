@@ -145,6 +145,7 @@ async function main() {
   try {
     if (!values['skip-build']) {
       console.log('\nBuilding workspace...')
+      // TODO also clean everything, because otherwise e.g. @prisma/client/runtime may bloat to multiple hundreds of MiB because unnecessary build artifacts of other branches are not cleared
       await runCommand('pnpm', ['build'], { cwd: repoRoot })
     }
 
