@@ -39,6 +39,18 @@ async function main() {
   const executeRaw4 = await prisma.$executeRaw(Prisma.sql`SELECT * FROM User WHERE id = ${1}`)
   const executeRaw5 = await prisma.$executeRaw(Prisma.sql`SELECT * FROM User ${Prisma.sql`WHERE id = ${1}`}`)
 
+  // const resultTmp2 = await prisma.user.findUnique({
+  //   // bla: 'bla',
+  //   where: {
+  //     email: 'bla',
+  //   },
+  // })
+  // const resultTmp1 = await prisma.user.findMany({
+  //   // bla: 'bla',
+  //   where: {
+  //     email: 'bla',
+  //   },
+  // })
   const result1 = await prisma.user.findMany({
     where: {
       posts: {

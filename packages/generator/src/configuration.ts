@@ -13,7 +13,9 @@ export type ClientTypingSimplifications = {
    * - extensions
    * - composite types (available in MongoDB only)
    * - omitApi: local (via Args) and global omit (via ClientOptions)
-   * - SelectSubset in delegate args (replaced with Subset because SelectSubset can mess up editor type suggestions)
+   * - SelectSubset in delegate args (replaced with TypeFestExact workaround by default in simplified mode)
+   *   Set PRISMA_HACK_GENERATOR_CONFIG_DISABLE_WORKAROUND_FOR_INTELLIJ_NON_SERVICE_POWERED_ENGINE=true
+   *   to keep the original SelectSubset behavior for those delegate args.
    *
    * Removes a lot of generics, conditional types and complexity from the generated client typings.
    * Uses runtime 'exported-simplified' types over 'exported' types whenever available.

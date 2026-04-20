@@ -122,6 +122,7 @@ export const commonCodeTS = (
   // TODO [simplification] remove this if flag set?
   // TODO [simplification] remove $Extensions and $Public completely if flag set?
   tsWithoutNamespace: () => `import * as runtime from '${runtimeBase}/${runtimeNameTs}';
+${context.isIntelliJNonServicePoweredEngineWorkaroundEnabled() ? "import {Exact as TypeFestExact} from 'type-fest'" : ''}
 ${
   context.isTypingSupportForHeavyFeaturesEnabled()
     ? `import $Types = runtime.Types // general types
@@ -306,7 +307,7 @@ export type Subset<T, U> = {
 };
 
 ${
-  context.isTypingSupportForHeavyFeaturesEnabled()
+  !context.isIntelliJNonServicePoweredEngineWorkaroundEnabled()
     ? `/**
  * SelectSubset
  * @desc From \`T\` pick properties that exist in \`U\`. Simple version of Intersection.
@@ -317,9 +318,14 @@ export type SelectSubset<T, U> = {
 } &
   (T extends SelectAndInclude
     ? 'Please either choose \`select\` or \`include\`.'
-    : T extends SelectAndOmit
+    ${
+      context.isTypingSupportForHeavyFeaturesEnabled()
+        ? `: T extends SelectAndOmit
       ? 'Please either choose \`select\` or \`omit\`.'
-      : {})`
+      : {}`
+        : `    : {}
+`
+    })`
     : ''
 }
 

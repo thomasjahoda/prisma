@@ -655,7 +655,7 @@ function buildModelDelegateMethod(modelName: string, actionName: DMMF.ModelActio
     .addParameter(getNonAggregateMethodArgs(modelName, actionName, context))
     .setReturnType(getReturnType({ modelName, actionName, context }))
 
-  const generic = getNonAggregateMethodGenericParam(modelName, actionName)
+  const generic = getNonAggregateMethodGenericParam(modelName, actionName, context)
   if (generic) {
     method.addGenericParameter(generic)
   }
@@ -683,15 +683,10 @@ function getNonAggregateMethodArgs(modelName: string, actionName: DMMF.ModelActi
     return makeParameter(ts.namedType(getModelArgName(modelName, actionName))).optional()
   }
 
-  const type = context.isTypingSupportForHeavyFeaturesEnabled()
-    ? ts
-        .namedType('SelectSubset')
-        .addGenericArgument(ts.namedType('T'))
-        .addGenericArgument(addExtArgsArgumentIfNeeded(ts.namedType(getModelArgName(modelName, actionName)), context))
-    : ts
-        .namedType('Subset')
-        .addGenericArgument(ts.namedType('T'))
-        .addGenericArgument(addExtArgsArgumentIfNeeded(ts.namedType(getModelArgName(modelName, actionName)), context))
+  const modelArgType = addExtArgsArgumentIfNeeded(ts.namedType(getModelArgName(modelName, actionName)), context)
+  const type = context.isIntelliJNonServicePoweredEngineWorkaroundEnabled()
+    ? ts.namedType('T')
+    : ts.namedType('SelectSubset').addGenericArgument(ts.namedType('T')).addGenericArgument(modelArgType)
   const param = makeParameter(type)
 
   if (
@@ -708,7 +703,7 @@ function getNonAggregateMethodArgs(modelName: string, actionName: DMMF.ModelActi
   return param
 }
 
-function getNonAggregateMethodGenericParam(modelName: string, actionName: DMMF.ModelAction) {
+function getNonAggregateMethodGenericParam(modelName: string, actionName: DMMF.ModelAction, context: GenerateContext) {
   if (
     actionName === DMMF.ModelAction.count ||
     actionName === DMMF.ModelAction.findRaw ||
@@ -719,6 +714,11 @@ function getNonAggregateMethodGenericParam(modelName: string, actionName: DMMF.M
   const arg = ts.genericParameter('T')
   if (actionName === DMMF.ModelAction.aggregate) {
     return arg.extends(ts.namedType(getAggregateArgsName(modelName)))
+  }
+  if (context.isIntelliJNonServicePoweredEngineWorkaroundEnabled()) {
+    return arg.extends(
+      ts.namedType('TypeFestExact').addGenericArgument(ts.namedType(getModelArgName(modelName, actionName))).addGenericArgument(ts.namedType('T')),
+    )
   }
   return arg.extends(ts.namedType(getModelArgName(modelName, actionName)))
 }

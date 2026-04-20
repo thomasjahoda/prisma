@@ -18,7 +18,7 @@ describe('valid types', () => {
       .map((dir) => path.basename(dir))
       // Simplified mode intentionally drops SelectSubset-based strict arg validation.
       .filter((testName) => !testsExpectingStrictArgValidation.has(testName))
-    test.each(subDirNames)(`%s`, async (testName) => {
+    test.concurrent.each(subDirNames)(`%s`, async (testName) => {
       await runTest(testName, 'simplified')
     })
   })
