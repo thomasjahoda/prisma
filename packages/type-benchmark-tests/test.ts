@@ -17,6 +17,7 @@ const directoryBlockList = ['node_modules']
 const benchmarkVariants = ['ts', 'ts-simplified', 'js', 'js-simplified'] as const
 const benchStartLinePattern = /^🏌️\s+(.+)$/u
 const resultLinePattern = /^⛳ Result:\s+([\d,]+)\s+instantiations$/u
+const naturalOrderCollator = new Intl.Collator('en', { numeric: true, sensitivity: 'base' })
 
 type BenchmarkVariant = (typeof benchmarkVariants)[number]
 
@@ -493,17 +494,17 @@ function compareTestCases(a: string, b: string) {
     return parsedA.isTypeCheck ? -1 : 1
   }
 
-  const fileOrder = parsedA.fileName.localeCompare(parsedB.fileName)
+  const fileOrder = naturalOrderCollator.compare(parsedA.fileName, parsedB.fileName)
   if (fileOrder !== 0) {
     return fileOrder
   }
 
-  const benchmarkNameOrder = (parsedA.benchmarkName ?? '').localeCompare(parsedB.benchmarkName ?? '')
+  const benchmarkNameOrder = naturalOrderCollator.compare(parsedA.benchmarkName ?? '', parsedB.benchmarkName ?? '')
   if (benchmarkNameOrder !== 0) {
     return benchmarkNameOrder
   }
 
-  return a.localeCompare(b)
+  return naturalOrderCollator.compare(a, b)
 }
 
 function parseTestCase(testCase: string) {
