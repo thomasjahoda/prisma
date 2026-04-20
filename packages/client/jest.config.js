@@ -16,6 +16,8 @@ module.exports = {
     '<rootDir>/src/__tests__/types/.*/test.library.ts',
     '<rootDir>/src/__tests__/integration/happy/not-so-exhaustive-schema/common.ts',
     '<rootDir>/src/__tests__/integration/happy/not-so-exhaustive-schema/generated-dmmf.ts',
+    '<rootDir>/src/__tests__/integration/happy/not-so-exhaustive-schema-with-simplified-types/common.ts',
+    '<rootDir>/src/__tests__/integration/happy/not-so-exhaustive-schema-with-simplified-types/generated-dmmf.ts',
     '<rootDir>/src/__tests__/generation/__fixture__',
     '<rootDir>/src/__tests__/integration/happy/not-so-exhaustive-schema-mongo/common.ts',
     '<rootDir>/src/__tests__/integration/happy/not-so-exhaustive-schema-mongo/generated-dmmf.ts',

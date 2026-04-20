@@ -501,6 +501,19 @@ export class ModelDelegate implements Generable {
     const nonAggregateActions = this.getNonAggregateActions(availableActions)
     const groupByArgsName = getGroupByArgsName(name)
     const countArgsName = getModelArgName(name, DMMF.ModelAction.count)
+    const aggregateArgsName = getAggregateArgsName(name)
+    const countGenericConstraint = this.context.isIntelliJNonServicePoweredEngineWorkaroundEnabled()
+      ? `TypeFestExact<${countArgsName}, T>`
+      : countArgsName
+    const countArgsType = this.context.isIntelliJNonServicePoweredEngineWorkaroundEnabled()
+      ? 'T'
+      : `Subset<T, ${countArgsName}>`
+    const aggregateGenericConstraint = this.context.isIntelliJNonServicePoweredEngineWorkaroundEnabled()
+      ? `TypeFestExact<${aggregateArgsName}, T>`
+      : aggregateArgsName
+    const aggregateArgsType = this.context.isIntelliJNonServicePoweredEngineWorkaroundEnabled()
+      ? 'T'
+      : `Subset<T, ${aggregateArgsName}>`
 
     const genericDelegateParams = this.context.isTypingSupportForHeavyFeaturesEnabled() ? [extArgsParam] : []
 
@@ -547,8 +560,8 @@ ${nonAggregateActions
 ${
   availableActions.includes(DMMF.ModelAction.aggregate)
     ? `${indent(getMethodJSDoc(DMMF.ModelAction.count, mapping, modelOrType), TAB_SIZE)}
-  count<T extends ${countArgsName}>(
-    args?: Subset<T, ${countArgsName}>,
+  count<T extends ${countGenericConstraint}>(
+    args?: ${countArgsType},
   ): Prisma.PrismaPromise<
     T extends $Utils.Record<'select', any>
       ? T['select'] extends true
@@ -562,9 +575,9 @@ ${
 ${
   availableActions.includes(DMMF.ModelAction.aggregate)
     ? `${indent(getMethodJSDoc(DMMF.ModelAction.aggregate, mapping, modelOrType), TAB_SIZE)}
-  aggregate<T extends ${getAggregateArgsName(name)}>(args: Subset<T, ${getAggregateArgsName(
+  aggregate<T extends ${aggregateGenericConstraint}>(args: ${aggregateArgsType}): Prisma.PrismaPromise<${getAggregateGetName(
     name,
-  )}>): Prisma.PrismaPromise<${getAggregateGetName(name)}<T>>
+  )}<T>>
 `
     : ''
 }
@@ -951,12 +964,30 @@ function buildFluentWrapperDefinition(modelName: string, outputType: DMMF.Output
       )
       .map((field) => {
         const fieldArgType = addExtArgsArgumentIfNeeded(ts.namedType(getFieldArgName(field, modelName)), context)
+        const isIntelliJNonServicePoweredEngineWorkaroundEnabled =
+          context.isIntelliJNonServicePoweredEngineWorkaroundEnabled()
 
-        const argsParam = ts.genericParameter('T').extends(fieldArgType).default(ts.objectType())
+        const argsParam = isIntelliJNonServicePoweredEngineWorkaroundEnabled
+          ? ts
+              .genericParameter('T')
+              .extends(
+                ts.namedType('TypeFestExact').addGenericArgument(fieldArgType).addGenericArgument(ts.namedType('T')),
+              )
+              .default(ts.objectType())
+          : ts.genericParameter('T').extends(fieldArgType).default(ts.objectType())
         return ts
           .method(field.name)
           .addGenericParameter(argsParam)
-          .addParameter(ts.parameter('args', subset(argsParam.toArgument(), fieldArgType)).optional())
+          .addParameter(
+            ts
+              .parameter(
+                'args',
+                isIntelliJNonServicePoweredEngineWorkaroundEnabled
+                  ? argsParam.toArgument()
+                  : subset(argsParam.toArgument(), fieldArgType),
+              )
+              .optional(),
+          )
           .setReturnType(
             getReturnType({
               modelName: field.outputType.type,
