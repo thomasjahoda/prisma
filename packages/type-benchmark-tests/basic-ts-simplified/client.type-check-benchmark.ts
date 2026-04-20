@@ -5,7 +5,5 @@ import { PrismaClient } from './generated/client'
 
 const client: PrismaClient<'info'> = undefined as any
 
-client.user.findUnique({
-  where: { id: 'some_user_id' },
-})
+client.$connect()
 // type-check-benchmark-instantiations: 182720

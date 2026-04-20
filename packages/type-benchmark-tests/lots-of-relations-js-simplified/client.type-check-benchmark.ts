@@ -5,5 +5,5 @@ import { PrismaClient } from './generated'
 
 const client: PrismaClient = undefined as any
 
-client.model0.findMany({ select: { model1: true } })
+client.$connect()
 // type-check-benchmark-instantiations: 350
