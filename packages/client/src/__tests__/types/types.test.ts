@@ -3,10 +3,24 @@ import path from 'path'
 import { runTest } from './types-test-logic'
 
 describe('valid types', () => {
-  const subDirs = getSubDirs(__dirname)
-  const subDirNames = subDirs.map((dir) => path.basename(dir))
-  test.concurrent.each(subDirNames)(`%s`, async (testName) => {
-    await runTest(testName, 'normal')
+  describe('normal', () => {
+    const subDirs = getSubDirs(__dirname)
+    const subDirNames = subDirs.map((dir) => path.basename(dir))
+    test.concurrent.each(subDirNames)(`%s`, async (testName) => {
+      await runTest(testName, 'normal')
+    })
+  })
+
+  describe('simplified', () => {
+    const testsExpectingStrictArgValidation = new Set(['select-and-include-mutual-exclusion'])
+    const subDirs = getSubDirs(__dirname)
+    const subDirNames = subDirs
+      .map((dir) => path.basename(dir))
+      // Simplified mode intentionally drops SelectSubset-based strict arg validation.
+      .filter((testName) => !testsExpectingStrictArgValidation.has(testName))
+    test.each(subDirNames)(`%s`, async (testName) => {
+      await runTest(testName, 'simplified')
+    })
   })
 })
 

@@ -305,7 +305,9 @@ export type Subset<T, U> = {
   [key in keyof T]: key extends keyof U ? T[key] : never;
 };
 
-/**
+${
+  context.isTypingSupportForHeavyFeaturesEnabled()
+    ? `/**
  * SelectSubset
  * @desc From \`T\` pick properties that exist in \`U\`. Simple version of Intersection.
  * Additionally, it validates, if both select and include are present. If the case, it errors.
@@ -315,14 +317,11 @@ export type SelectSubset<T, U> = {
 } &
   (T extends SelectAndInclude
     ? 'Please either choose \`select\` or \`include\`.'
-    ${
-      context.isTypingSupportForHeavyFeaturesEnabled()
-        ? `: T extends SelectAndOmit
+    : T extends SelectAndOmit
       ? 'Please either choose \`select\` or \`omit\`.'
-      : {}`
-        : `    : {}
-`
-    })
+      : {})`
+    : ''
+}
 
 /**
  * Subset + Intersection

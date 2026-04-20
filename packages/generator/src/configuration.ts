@@ -13,6 +13,7 @@ export type ClientTypingSimplifications = {
    * - extensions
    * - composite types (available in MongoDB only)
    * - omitApi: local (via Args) and global omit (via ClientOptions)
+   * - SelectSubset in delegate args (replaced with Subset because SelectSubset can mess up editor type suggestions)
    *
    * Removes a lot of generics, conditional types and complexity from the generated client typings.
    * Uses runtime 'exported-simplified' types over 'exported' types whenever available.

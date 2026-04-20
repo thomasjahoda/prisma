@@ -13,7 +13,12 @@ const prisma = new PrismaClient({
 ;(async () => {
   expectError(
     await prisma.user.findFirst({
-      prop: true,
+      include: {
+        posts: true,
+      },
+      select: {
+        id: true,
+      },
     }),
   )
 })()

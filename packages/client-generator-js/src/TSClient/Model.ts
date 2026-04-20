@@ -683,10 +683,15 @@ function getNonAggregateMethodArgs(modelName: string, actionName: DMMF.ModelActi
     return makeParameter(ts.namedType(getModelArgName(modelName, actionName))).optional()
   }
 
-  const type = ts
-    .namedType('SelectSubset')
-    .addGenericArgument(ts.namedType('T'))
-    .addGenericArgument(addExtArgsArgumentIfNeeded(ts.namedType(getModelArgName(modelName, actionName)), context))
+  const type = context.isTypingSupportForHeavyFeaturesEnabled()
+    ? ts
+        .namedType('SelectSubset')
+        .addGenericArgument(ts.namedType('T'))
+        .addGenericArgument(addExtArgsArgumentIfNeeded(ts.namedType(getModelArgName(modelName, actionName)), context))
+    : ts
+        .namedType('Subset')
+        .addGenericArgument(ts.namedType('T'))
+        .addGenericArgument(addExtArgsArgumentIfNeeded(ts.namedType(getModelArgName(modelName, actionName)), context))
   const param = makeParameter(type)
 
   if (
