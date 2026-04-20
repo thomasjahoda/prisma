@@ -5,6 +5,29 @@ import { execa } from 'execa'
 
 const referenceCommentPattern = /\/\/\s*type-check-benchmark-instantiations:\s*(\d+)\s*$/m
 
+export type TypeCheckingBenchmarkExecutionResult = {
+  instantiations: number
+  durationSeconds: number
+  referencedInstantiations?: number
+}
+
+type TypeCheckingBenchmarkFailureKind = 'type-checking-failed' | 'instantiation-mismatch'
+
+export class TypeCheckingBenchmarkExecutionError extends Error {
+  constructor(
+    message: string,
+    readonly kind: TypeCheckingBenchmarkFailureKind,
+    readonly metadata: {
+      instantiations?: number
+      durationSeconds?: number
+      referencedInstantiations?: number
+    } = {},
+  ) {
+    super(message)
+    this.name = 'TypeCheckingBenchmarkExecutionError'
+  }
+}
+
 export async function executeTypeCheckingBenchmarkForEntrypointFile({
   cwd,
   entrypointFile,
@@ -13,7 +36,7 @@ export async function executeTypeCheckingBenchmarkForEntrypointFile({
   cwd: string
   entrypointFile: string
   updateSnapshots: boolean
-}) {
+}): Promise<TypeCheckingBenchmarkExecutionResult> {
   const entrypointPath = join(cwd, entrypointFile)
   const source = await readFile(entrypointPath, 'utf8')
   const referencedInstantiations = readReferencedInstantiations(source)
@@ -44,7 +67,10 @@ export async function executeTypeCheckingBenchmarkForEntrypointFile({
     const diagnosticsOutput = [stdout, stderr].filter(Boolean).join('\n')
 
     if (exitCode !== 0) {
-      throw new Error(`Type checking failed for ${entrypointFile}\n${diagnosticsOutput}`)
+      throw new TypeCheckingBenchmarkExecutionError(
+        `Type checking failed for ${entrypointFile}\n${diagnosticsOutput}`,
+        'type-checking-failed',
+      )
     }
 
     const instantiations = parseInstantiations(diagnosticsOutput)
@@ -55,14 +81,21 @@ export async function executeTypeCheckingBenchmarkForEntrypointFile({
     if (referencedInstantiations === undefined) {
       await writeReferenceComment(entrypointPath, source, instantiations)
       console.log(`📝 Recorded reference instantiations for ${entrypointFile}`)
-      return
+      return {
+        instantiations,
+        durationSeconds: duration,
+      }
     }
 
     console.log(`🎯 Reference: ${referencedInstantiations} instantiations`)
 
     if (instantiations === referencedInstantiations) {
       console.log('📊 Delta: 0.00%')
-      return
+      return {
+        instantiations,
+        durationSeconds: duration,
+        referencedInstantiations,
+      }
     }
 
     const deltaPercentage = (((instantiations - referencedInstantiations) / referencedInstantiations) * 100).toFixed(2)
@@ -71,11 +104,21 @@ export async function executeTypeCheckingBenchmarkForEntrypointFile({
       await writeReferenceComment(entrypointPath, source, instantiations)
       console.log(`📝 Updated reference instantiations from ${referencedInstantiations} to ${instantiations}`)
       console.log(`📊 Delta: ${deltaPercentage}%`)
-      return
+      return {
+        instantiations,
+        durationSeconds: duration,
+        referencedInstantiations,
+      }
     }
 
-    throw new Error(
+    throw new TypeCheckingBenchmarkExecutionError(
       `Type-check benchmark mismatch for ${entrypointFile}: got ${instantiations}, expected ${referencedInstantiations} (${deltaPercentage}%).`,
+      'instantiation-mismatch',
+      {
+        instantiations,
+        durationSeconds: duration,
+        referencedInstantiations,
+      },
     )
   } finally {
     await rm(temporaryTsconfigPath, { force: true })

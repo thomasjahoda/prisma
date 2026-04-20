@@ -8,17 +8,21 @@ This test suite shall ensure that we are not running into regressions with our t
 
 ## Usage
 
+NOTE: All following commands have to be executed from the current directory (packages/type-benchmark-tests).
+
 - Make sure the overall monorepo has dependency installed (`pnpm install` in root) and is build (`pnpm build` in root).
 - Run `pnpm test` to run the test suite
 - Run `pnpm test:update` to update snapshot recordings
 - Run `pnpm test <filter>` to run only files including <filter> in their filename
 - Run `pnpm test:update <filter>` to only update snapshots of files including <filter> in their filename
+- Add `--skipGenerate` to skip generating the Prisma client for the schemas, e.g. if you only change the tests and want to iterate quickly.
 
 ## Structure
 
 - Each folder in this directory contains a different schema.
 - Plain `-js` folders use `provider = "prisma-client-js"` with the regular, unsimplified type surface.
 - Folders suffixed with `-js-simplified` use `provider = "prisma-client-js"` and generate with `PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES=true`.
+- Folders suffixed with `-ts-simplified` use `provider = "prisma-client-ts"` and generate with `PRISMA_HACK_GENERATOR_CONFIG_DISABLETYPINGSUPPORTFORHEAVYFEATURES=true`.
 - Each schema can be tested with multiple `*.bench.ts` files.
 - Each `*.bench.ts` file can contain multiple attest benchmarks and a dedicated baseline.
 - Each schema can also contain multiple `*.type-check-benchmark.ts` entrypoint files, which are measured via `tsc --extendedDiagnostics`.
@@ -48,7 +52,7 @@ These files run `tsc --extendedDiagnostics` against one benchmark entrypoint fil
 Common patterns in this directory:
 
 - `client.type-check-benchmark.ts`: intended to expose the cost of bringing the generated Prisma client types into the type-checking program, plus a minimal operation that forces the client shape to be used.
-- `10-ops.type-check-benchmark.ts`: type-checks a file containing a fixed set of ten operations so the total compiler work for that entrypoint can be compared between TS and `-js-simplified`.
+- `10-ops.type-check-benchmark.ts`: type-checks a file containing a fixed set of ten operations so the total compiler work for that entrypoint can be compared between TS and the simplified generator variants.
 
 ## Warning
 
